@@ -1,0 +1,3 @@
+include ':libauk'
+include ':app'
+rootProject.name = "LibAuk Example"
