@@ -7,6 +7,7 @@ import io.reactivex.Completable
 import io.reactivex.Single
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.util.*
 
 internal interface SecureFileStorage {
     fun write(path: String, name: String, data: ByteArray)
@@ -26,11 +27,7 @@ internal interface SecureFileStorage {
     fun deleteOnFilesDir(name: String): Boolean
 }
 
-internal class SecureFileStorageImpl constructor(private val context: Context) : SecureFileStorage {
-
-    companion object {
-        const val SECURE_FILE_KEY_ALIAS = "secure_file_key_set_alias"
-    }
+internal class SecureFileStorageImpl constructor(private val context: Context, private val alias: UUID) : SecureFileStorage {
 
     private val masterKey = MasterKey.Builder(context)
         .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
@@ -97,7 +94,7 @@ internal class SecureFileStorageImpl constructor(private val context: Context) :
         f,
         masterKey,
         EncryptedFile.FileEncryptionScheme.AES256_GCM_HKDF_4KB
-    ).setKeysetAlias(SECURE_FILE_KEY_ALIAS)
+    ).setKeysetAlias(alias.toString())
 }
 
 internal fun <T> SecureFileStorage.rxSingle(action: (SecureFileStorage) -> T) =

@@ -4,22 +4,21 @@ import android.content.Context
 import com.bitmark.libauk.storage.SecureFileStorageImpl
 import com.bitmark.libauk.storage.WalletStorage
 import com.bitmark.libauk.storage.WalletStorageImpl
+import java.util.*
 
-class LibAuk constructor(context: Context) {
-
-    val wallet: WalletStorage
-
-    init {
-        val storage = SecureFileStorageImpl(context)
-        wallet = WalletStorageImpl(storage)
-    }
+class LibAuk {
 
     companion object {
         @Volatile
         private var INSTANCE: LibAuk? = null
 
         @Synchronized
-        fun getInstance(context: Context): LibAuk =
-            INSTANCE ?: LibAuk(context).also { INSTANCE = it }
+        fun getInstance(): LibAuk =
+            INSTANCE ?: LibAuk().also { INSTANCE = it }
+    }
+
+    fun getStorage(uuid: UUID, context: Context): WalletStorage {
+        val storage = SecureFileStorageImpl(context, uuid)
+        return WalletStorageImpl(storage)
     }
 }

@@ -1,7 +1,7 @@
 package com.bitmark.libauk.storage
 
-import com.bitmark.libauk.model.KeyIdentity
 import com.bitmark.libauk.model.KeyInfo
+import com.bitmark.libauk.model.Seed
 import com.bitmark.libauk.util.fromJson
 import com.bitmark.libauk.util.newGsonInstance
 import io.reactivex.Completable
@@ -12,42 +12,47 @@ import java.util.*
 import kotlin.Pair
 
 interface WalletStorage {
-    fun createKey(): Completable
+    fun createKey(name: String): Completable
+    fun importKey(words: List<String>, name: String, creationDate: Date?): Completable
     fun isWalletCreated(): Single<Boolean>
+    fun getName(): Single<String>
+    fun updateName(name: String): Completable
     fun getETHAddress(): Single<String>
     fun signPersonalMessage(message: ByteArray): Single<Sign.SignatureData>
     fun signTransaction(transaction: RawTransaction, chainId: Long): Single<ByteArray>
-    fun exportSeed(): Single<KeyIdentity>
+    fun exportMnemonicWords(): Single<String>
+    fun removeKeys(): Completable
 }
 
 internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorage) : WalletStorage {
 
     companion object {
-        const val KEY_IDENTITY_FILE_NAME = "libauk_key_identity.dat"
+        const val SEED_FILE_NAME = "libauk_seed.dat"
         const val ETH_KEY_INFO_FILE_NAME = "libauk_eth_key_info.dat"
     }
 
-    override fun createKey(): Completable = secureFileStorage.rxSingle { storage ->
-        storage.isExisting(KEY_IDENTITY_FILE_NAME) && storage.isExisting(ETH_KEY_INFO_FILE_NAME)
+    override fun createKey(name: String): Completable = secureFileStorage.rxSingle { storage ->
+        storage.isExisting(SEED_FILE_NAME) && storage.isExisting(ETH_KEY_INFO_FILE_NAME)
     }
         .map { isExisting ->
-            if (isExisting) {
+            if (!isExisting) {
                 val mnemonic = generateMnemonic()
-                val keyIdentity = KeyIdentity(mnemonic, "")
+                val entropy = MnemonicUtils.generateEntropy(mnemonic)
+                val seed = Seed(entropy, Date(), name)
 
                 val credential =
-                    WalletUtils.loadBip39Credentials(keyIdentity.passphrase, keyIdentity.words)
+                    WalletUtils.loadBip39Credentials("", mnemonic)
                 val keyInfo = KeyInfo(credential.address, Date())
-                Pair(keyIdentity, keyInfo)
+                Pair(seed, keyInfo)
             } else {
                 throw Throwable("Wallet is already created!")
             }
         }
-        .flatMapCompletable { (keyIdentity, keyInfo) ->
+        .flatMapCompletable { (seed, keyInfo) ->
             secureFileStorage.rxCompletable { storage ->
                 storage.writeOnFilesDir(
-                    KEY_IDENTITY_FILE_NAME,
-                    newGsonInstance().toJson(keyIdentity).toByteArray()
+                    SEED_FILE_NAME,
+                    newGsonInstance().toJson(seed).toByteArray()
                 )
                 storage.writeOnFilesDir(
                     ETH_KEY_INFO_FILE_NAME,
@@ -56,9 +61,59 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
             }
         }
 
+    override fun importKey(words: List<String>, name: String, creationDate: Date?): Completable =
+        secureFileStorage.rxSingle { storage ->
+            storage.isExisting(SEED_FILE_NAME) && storage.isExisting(ETH_KEY_INFO_FILE_NAME)
+        }
+            .map { isExisting ->
+                if (!isExisting) {
+                    val mnemonic = words.joinToString(separator = " ")
+                    val entropy = MnemonicUtils.generateEntropy(mnemonic)
+                    val seed = Seed(entropy, Date(), name)
+
+                    val credential =
+                        WalletUtils.loadBip39Credentials("", mnemonic)
+                    val keyInfo = KeyInfo(credential.address, Date())
+                    Pair(seed, keyInfo)
+                } else {
+                    throw Throwable("Wallet is already created!")
+                }
+            }
+            .flatMapCompletable { (seed, keyInfo) ->
+                secureFileStorage.rxCompletable { storage ->
+                    storage.writeOnFilesDir(
+                        SEED_FILE_NAME,
+                        newGsonInstance().toJson(seed).toByteArray()
+                    )
+                    storage.writeOnFilesDir(
+                        ETH_KEY_INFO_FILE_NAME,
+                        newGsonInstance().toJson(keyInfo).toByteArray()
+                    )
+                }
+            }
+
     override fun isWalletCreated(): Single<Boolean> = secureFileStorage.rxSingle { storage ->
-        storage.isExisting(KEY_IDENTITY_FILE_NAME) && storage.isExisting(ETH_KEY_INFO_FILE_NAME)
+        storage.isExisting(SEED_FILE_NAME) && storage.isExisting(ETH_KEY_INFO_FILE_NAME)
     }
+
+    override fun getName(): Single<String> = secureFileStorage.rxSingle { storage ->
+        val json = storage.readOnFilesDir(SEED_FILE_NAME)
+        val seed = newGsonInstance().fromJson<Seed>(String(json))
+        seed.name
+    }
+
+    override fun updateName(name: String): Completable =
+        secureFileStorage.rxCompletable { storage ->
+            val json = storage.readOnFilesDir(SEED_FILE_NAME)
+            val seed = newGsonInstance().fromJson<Seed>(String(json))
+
+            seed.name = name
+
+            storage.writeOnFilesDir(
+                SEED_FILE_NAME,
+                newGsonInstance().toJson(seed).toByteArray()
+            )
+        }
 
     override fun getETHAddress(): Single<String> = secureFileStorage.rxSingle { storage ->
         val json = storage.readOnFilesDir(ETH_KEY_INFO_FILE_NAME)
@@ -69,29 +124,47 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
 
     override fun signPersonalMessage(message: ByteArray): Single<Sign.SignatureData> =
         secureFileStorage.rxSingle { storage ->
-            val json = storage.readOnFilesDir(KEY_IDENTITY_FILE_NAME)
-            val keyIdentity = newGsonInstance().fromJson<KeyIdentity>(String(json))
-
+            val json = storage.readOnFilesDir(SEED_FILE_NAME)
+            val seed = newGsonInstance().fromJson<Seed>(String(json))
+            val mnemonic = MnemonicUtils.generateMnemonic(seed.data)
             val credential =
-                WalletUtils.loadBip39Credentials(keyIdentity.passphrase, keyIdentity.words)
+                WalletUtils.loadBip39Credentials("", mnemonic)
 
             Sign.signPrefixedMessage(message, credential.ecKeyPair)
         }
 
     override fun signTransaction(transaction: RawTransaction, chainId: Long): Single<ByteArray> =
         secureFileStorage.rxSingle { storage ->
-            val json = storage.readOnFilesDir(KEY_IDENTITY_FILE_NAME)
-            val keyIdentity = newGsonInstance().fromJson<KeyIdentity>(String(json))
-
+            val json = storage.readOnFilesDir(SEED_FILE_NAME)
+            val seed = newGsonInstance().fromJson<Seed>(String(json))
+            val mnemonic = MnemonicUtils.generateMnemonic(seed.data)
             val credential =
-                WalletUtils.loadBip39Credentials(keyIdentity.passphrase, keyIdentity.words)
+                WalletUtils.loadBip39Credentials("", mnemonic)
             TransactionEncoder.signMessage(transaction, chainId, credential)
         }
 
-    override fun exportSeed(): Single<KeyIdentity> = secureFileStorage.rxSingle { storage ->
-        val json = storage.readOnFilesDir(KEY_IDENTITY_FILE_NAME)
-        newGsonInstance().fromJson<KeyIdentity>(String(json))
+    override fun exportMnemonicWords(): Single<String> = secureFileStorage.rxSingle { storage ->
+        val json = storage.readOnFilesDir(SEED_FILE_NAME)
+        val seed = newGsonInstance().fromJson<Seed>(String(json))
+        MnemonicUtils.generateMnemonic(seed.data)
     }
+
+    override fun removeKeys(): Completable = secureFileStorage.rxSingle { storage ->
+        storage.isExisting(SEED_FILE_NAME) && storage.isExisting(ETH_KEY_INFO_FILE_NAME)
+    }
+        .map { isExisting ->
+            if (isExisting) {
+                true
+            } else {
+                throw Throwable("Wallet is not created!")
+            }
+        }
+        .flatMapCompletable {
+            secureFileStorage.rxCompletable { storage ->
+                storage.deleteOnFilesDir(SEED_FILE_NAME)
+                storage.deleteOnFilesDir(ETH_KEY_INFO_FILE_NAME)
+            }
+        }
 
     private fun generateMnemonic(): String {
         val initialEntropy = ByteArray(16)

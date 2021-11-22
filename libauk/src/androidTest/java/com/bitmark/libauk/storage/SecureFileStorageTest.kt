@@ -4,13 +4,14 @@ import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import java.util.*
 
 class SecureFileStorageTest {
 
     private val appContext = InstrumentationRegistry.getInstrumentation().targetContext
 
     private lateinit var filePrefix: String
-    private val secureFileStorage = SecureFileStorageImpl(appContext)
+    private val secureFileStorage = SecureFileStorageImpl(appContext, UUID.randomUUID())
 
     @Before
     fun beforeEach() {
