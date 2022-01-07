@@ -7,7 +7,7 @@ android {
     buildToolsVersion "30.0.2"
 
     defaultConfig {
-        minSdkVersion 23
+        minSdkVersion 24
         targetSdkVersion 31
         versionCode 1
         versionName "1.0"
@@ -41,6 +41,7 @@ dependencies {
     implementation 'org.web3j:core:4.8.7-android'
     implementation 'com.google.code.gson:gson:2.8.5'
     implementation 'androidx.security:security-crypto:1.1.0-alpha03'
+    implementation 'io.camlcase:kotlintezos:2.0.2'
     testImplementation 'junit:junit:4.13.1'
     testImplementation 'com.nhaarman.mockitokotlin2:mockito-kotlin:2.2.0'
     androidTestImplementation 'androidx.test.ext:junit:1.1.3'

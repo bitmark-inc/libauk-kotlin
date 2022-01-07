@@ -4,6 +4,7 @@ import com.bitmark.libauk.model.KeyInfo
 import com.bitmark.libauk.model.Seed
 import com.bitmark.libauk.util.fromJson
 import com.bitmark.libauk.util.newGsonInstance
+import io.camlcase.kotlintezos.wallet.HDWallet
 import io.reactivex.Completable
 import io.reactivex.Single
 import org.web3j.crypto.*
@@ -21,6 +22,7 @@ interface WalletStorage {
     fun signPersonalMessage(message: ByteArray): Single<Sign.SignatureData>
     fun signTransaction(transaction: RawTransaction, chainId: Long): Single<ByteArray>
     fun exportMnemonicWords(): Single<String>
+    fun getTezosWallet(): Single<HDWallet>
     fun removeKeys(): Completable
 }
 
@@ -147,6 +149,14 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         val json = storage.readOnFilesDir(SEED_FILE_NAME)
         val seed = newGsonInstance().fromJson<Seed>(String(json))
         MnemonicUtils.generateMnemonic(seed.data)
+    }
+
+    override fun getTezosWallet(): Single<HDWallet> = secureFileStorage.rxSingle { storage ->
+        val json = storage.readOnFilesDir(SEED_FILE_NAME)
+        val seed = newGsonInstance().fromJson<Seed>(String(json))
+        MnemonicUtils.generateMnemonic(seed.data)
+    }.map {
+        HDWallet(it.split(" "))
     }
 
     override fun removeKeys(): Completable = secureFileStorage.rxSingle { storage ->

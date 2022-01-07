@@ -5,12 +5,13 @@ import com.bitmark.libauk.util.newGsonInstance
 import com.nhaarman.mockitokotlin2.*
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.web3j.crypto.MnemonicUtils
 import org.web3j.crypto.RawTransaction
 import java.math.BigInteger
 import java.util.*
 
-class WalletStorageTest {
+class WalletStorageUnitTest {
 
     private lateinit var walletStorage: WalletStorage
     private val secureFileStorage: SecureFileStorage = mock()
@@ -170,6 +171,24 @@ class WalletStorageTest {
                 "victory fatigue diet funny senior coral motion canal leg elite hen model"
             )
     }
+
+//    @Test
+//    fun getTezosWallet() {
+//        val words = "victory fatigue diet funny senior coral motion canal leg elite hen model"
+//        val entropy = MnemonicUtils.generateEntropy(words)
+//        val seed = Seed(entropy, Date(), "Test")
+//        val seedString = newGsonInstance().toJson(seed)
+//
+//        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
+//            seedString.toByteArray()
+//        )
+//
+//        walletStorage.getTezosWallet()
+//            .test()
+//            .assertValue {
+//                it.mainAddress == "tz10000"
+//            }
+//    }
 
     @Test
     fun removeKeys() {
