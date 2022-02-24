@@ -34,7 +34,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
     }
 
     override fun createKey(name: String): Completable = secureFileStorage.rxSingle { storage ->
-        storage.isExisting(SEED_FILE_NAME) && storage.isExisting(ETH_KEY_INFO_FILE_NAME)
+        storage.isExistingOnFilesDir(SEED_FILE_NAME) && storage.isExistingOnFilesDir(ETH_KEY_INFO_FILE_NAME)
     }
         .map { isExisting ->
             if (!isExisting) {
@@ -65,7 +65,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
 
     override fun importKey(words: List<String>, name: String, creationDate: Date?): Completable =
         secureFileStorage.rxSingle { storage ->
-            storage.isExisting(SEED_FILE_NAME) && storage.isExisting(ETH_KEY_INFO_FILE_NAME)
+            storage.isExistingOnFilesDir(SEED_FILE_NAME) && storage.isExistingOnFilesDir(ETH_KEY_INFO_FILE_NAME)
         }
             .map { isExisting ->
                 if (!isExisting) {
@@ -95,7 +95,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
             }
 
     override fun isWalletCreated(): Single<Boolean> = secureFileStorage.rxSingle { storage ->
-        storage.isExisting(SEED_FILE_NAME) && storage.isExisting(ETH_KEY_INFO_FILE_NAME)
+        storage.isExistingOnFilesDir(SEED_FILE_NAME) && storage.isExistingOnFilesDir(ETH_KEY_INFO_FILE_NAME)
     }
 
     override fun getName(): Single<String> = secureFileStorage.rxSingle { storage ->
@@ -160,7 +160,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
     }
 
     override fun removeKeys(): Completable = secureFileStorage.rxSingle { storage ->
-        storage.isExisting(SEED_FILE_NAME) && storage.isExisting(ETH_KEY_INFO_FILE_NAME)
+        storage.isExistingOnFilesDir(SEED_FILE_NAME) && storage.isExistingOnFilesDir(ETH_KEY_INFO_FILE_NAME)
     }
         .map { isExisting ->
             if (isExisting) {

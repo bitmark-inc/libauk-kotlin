@@ -10,19 +10,12 @@ import java.io.File
 import java.util.*
 
 internal interface SecureFileStorage {
-    fun write(path: String, name: String, data: ByteArray)
 
     fun writeOnFilesDir(name: String, data: ByteArray)
 
-    fun read(path: String): ByteArray
-
     fun readOnFilesDir(name: String): ByteArray
 
-    fun isExisting(path: String): Boolean
-
     fun isExistingOnFilesDir(name: String): Boolean
-
-    fun delete(path: String): Boolean
 
     fun deleteOnFilesDir(name: String): Boolean
 }
@@ -33,7 +26,7 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
         .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
         .build()
 
-    override fun write(path: String, name: String, data: ByteArray) {
+    private fun write(path: String, name: String, data: ByteArray) {
         val file = getEncryptedFile("$path/$name", false)
         file.openFileOutput().apply {
             write(data)
@@ -43,10 +36,10 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
     }
 
     override fun writeOnFilesDir(name: String, data: ByteArray) {
-        write(context.filesDir.absolutePath, name, data)
+        write(context.filesDir.absolutePath, "$alias-$name", data)
     }
 
-    override fun read(path: String): ByteArray {
+    private fun read(path: String): ByteArray {
         val file = getEncryptedFile(path, true)
         if (File(path).length() == 0L) return byteArrayOf()
         val inputStream = file.openFileInput()
@@ -60,14 +53,14 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
     }
 
     override fun readOnFilesDir(name: String): ByteArray =
-        read(File(context.filesDir, name).absolutePath)
+        read(File(context.filesDir, "$alias-$name").absolutePath)
 
-    override fun isExisting(path: String): Boolean = File(path).exists()
+    private fun isExisting(path: String): Boolean = File(path).exists()
 
     override fun isExistingOnFilesDir(name: String): Boolean =
-        isExisting(File(context.filesDir, name).absolutePath)
+        isExisting(File(context.filesDir, "$alias-$name").absolutePath)
 
-    override fun delete(path: String): Boolean = File(path).let { file ->
+    private fun delete(path: String): Boolean = File(path).let { file ->
         if (!file.exists()) true
         else if (file.isDirectory) {
             file.deleteRecursively()
@@ -77,7 +70,7 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
     }
 
     override fun deleteOnFilesDir(name: String): Boolean =
-        delete(File(context.filesDir, name).absolutePath)
+        delete(File(context.filesDir, "$alias-$name").absolutePath)
 
     private fun getEncryptedFile(path: String, read: Boolean) = File(path).let { f ->
         if (f.isDirectory) throw IllegalArgumentException("do not support directory")
@@ -94,7 +87,7 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
         f,
         masterKey,
         EncryptedFile.FileEncryptionScheme.AES256_GCM_HKDF_4KB
-    ).setKeysetAlias(alias.toString())
+    )
 }
 
 internal fun <T> SecureFileStorage.rxSingle(action: (SecureFileStorage) -> T) =
