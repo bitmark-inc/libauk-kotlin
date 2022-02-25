@@ -1,8 +1,10 @@
 package com.bitmark.libauk.storage
 
 import android.content.Context
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
 import androidx.security.crypto.EncryptedFile
-import androidx.security.crypto.MasterKey
+import androidx.security.crypto.MasterKeys
 import io.reactivex.Completable
 import io.reactivex.Single
 import java.io.ByteArrayOutputStream
@@ -22,9 +24,9 @@ internal interface SecureFileStorage {
 
 internal class SecureFileStorageImpl constructor(private val context: Context, private val alias: UUID) : SecureFileStorage {
 
-    private val masterKey = MasterKey.Builder(context)
-        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-        .build()
+//    private val masterKey = MasterKey.Builder(context)
+//        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+//        .build()
 
     private fun write(path: String, name: String, data: ByteArray) {
         val file = getEncryptedFile("$path/$name", false)
@@ -83,11 +85,24 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
     }
 
     private fun getEncryptedFileBuilder(f: File) = EncryptedFile.Builder(
-        context,
         f,
-        masterKey,
+        context,
+        getMasterKey(),
         EncryptedFile.FileEncryptionScheme.AES256_GCM_HKDF_4KB
     )
+
+    private fun getMasterKey(): String {
+        val parameterSpec = KeyGenParameterSpec.Builder("libauk", KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT).apply {
+            setKeySize(256)
+            setDigests(KeyProperties.DIGEST_SHA512)
+            setUserAuthenticationRequired(false)
+            setRandomizedEncryptionRequired(true)
+            setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+            setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+        }.build()
+
+        return MasterKeys.getOrCreate(parameterSpec)
+    }
 }
 
 internal fun <T> SecureFileStorage.rxSingle(action: (SecureFileStorage) -> T) =
