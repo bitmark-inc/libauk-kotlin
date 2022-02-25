@@ -9,6 +9,7 @@ import io.reactivex.Completable
 import io.reactivex.Single
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.security.KeyStore
 import java.util.*
 
 internal interface SecureFileStorage {
@@ -24,9 +25,14 @@ internal interface SecureFileStorage {
 
 internal class SecureFileStorageImpl constructor(private val context: Context, private val alias: UUID) : SecureFileStorage {
 
-//    private val masterKey = MasterKey.Builder(context)
-//        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-//        .build()
+    private val keyStore: KeyStore = KeyStore.getInstance(ANDROID_KEY_STORE).apply { load(null) }
+    private val sharedPreferences = context.getSharedPreferences("beaconsdk", Context.MODE_PRIVATE)
+
+    private var masterKeyAlias: String?
+        get() = sharedPreferences.getString(KEY_MASTER_KEY_ALIAS, null)
+        set(value) {
+            value?.let { sharedPreferences.edit().putString(KEY_MASTER_KEY_ALIAS, it).apply() }
+        }
 
     private fun write(path: String, name: String, data: ByteArray) {
         val file = getEncryptedFile("$path/$name", false)
@@ -92,7 +98,11 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
     )
 
     private fun getMasterKey(): String {
-        val parameterSpec = KeyGenParameterSpec.Builder("libauk", KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT).apply {
+        keyStore.load(null)
+
+        val keyAlias = masterKeyAlias ?: UUID.randomUUID().toString().also { masterKeyAlias = it }
+
+        val parameterSpec = KeyGenParameterSpec.Builder(keyAlias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT).apply {
             setKeySize(256)
             setDigests(KeyProperties.DIGEST_SHA512)
             setUserAuthenticationRequired(false)
@@ -102,6 +112,11 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
         }.build()
 
         return MasterKeys.getOrCreate(parameterSpec)
+    }
+
+    companion object {
+        private const val ANDROID_KEY_STORE = "AndroidKeyStore"
+        private const val KEY_MASTER_KEY_ALIAS = "masterKeyAlias"
     }
 }
 
