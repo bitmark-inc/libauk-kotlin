@@ -215,11 +215,6 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
     }
 
     private fun generateAccountNumber(key: PublicKey): String? {
-        GlobalConfiguration.createInstance(
-            GlobalConfiguration.builder()
-                .withApiToken("bitmark")
-                .withNetwork(Network.LIVE_NET)
-        )
         val address = Address.getDefault(key, GlobalConfiguration.network())
         val keyVariantVarInt = address.prefix
         val publicKeyBytes = key.toBytes()
