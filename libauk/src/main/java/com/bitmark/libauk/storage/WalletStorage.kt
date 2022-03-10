@@ -1,13 +1,23 @@
 package com.bitmark.libauk.storage
 
+import com.bitmark.apiservice.configuration.Network
+import com.bitmark.apiservice.utils.Address
+import com.bitmark.apiservice.utils.ArrayUtil
+import com.bitmark.cryptography.crypto.Ed25519
+import com.bitmark.cryptography.crypto.Sha3256
+import com.bitmark.cryptography.crypto.encoder.Base58
+import com.bitmark.cryptography.crypto.key.PublicKey
+import com.bitmark.libauk.Const.BITMARK_DERIVATION_PATH
 import com.bitmark.libauk.model.KeyInfo
 import com.bitmark.libauk.model.Seed
 import com.bitmark.libauk.util.fromJson
 import com.bitmark.libauk.util.newGsonInstance
+import com.bitmark.sdk.features.Account
 import io.camlcase.kotlintezos.wallet.HDWallet
 import io.reactivex.Completable
 import io.reactivex.Single
 import org.web3j.crypto.*
+import wallet.core.jni.CoinType
 import java.security.SecureRandom
 import java.util.*
 import kotlin.Pair
@@ -23,6 +33,7 @@ interface WalletStorage {
     fun signTransaction(transaction: RawTransaction, chainId: Long): Single<ByteArray>
     fun exportMnemonicWords(): Single<String>
     fun getTezosWallet(): Single<HDWallet>
+    fun getBitmarkAddress(): Single<String>
     fun removeKeys(): Completable
 }
 
@@ -159,6 +170,18 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         HDWallet(it.split(" "))
     }
 
+    override fun getBitmarkAddress(): Single<String> = secureFileStorage.rxSingle { storage ->
+        val json = storage.readOnFilesDir(SEED_FILE_NAME)
+        val seed = newGsonInstance().fromJson<Seed>(String(json))
+        MnemonicUtils.generateMnemonic(seed.data)
+    }.map {
+        val wallet = wallet.core.jni.HDWallet(it, "")
+        val seed = wallet.getKey(CoinType.BITCOIN, BITMARK_DERIVATION_PATH).data()
+        val keyPair = Ed25519.generateKeyPairFromSeed(seed)
+
+        generateAccountNumber(keyPair.publicKey(), Network.LIVE_NET)
+    }
+
     override fun removeKeys(): Completable = secureFileStorage.rxSingle { storage ->
         storage.isExistingOnFilesDir(SEED_FILE_NAME) && storage.isExistingOnFilesDir(ETH_KEY_INFO_FILE_NAME)
     }
@@ -181,5 +204,27 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         SecureRandom().nextBytes(initialEntropy)
 
         return MnemonicUtils.generateMnemonic(initialEntropy)
+    }
+
+    private fun generateAccountNumber(
+        key: PublicKey,
+        network: Network
+    ): String? {
+        val address = Address.getDefault(key, network)
+        val keyVariantVarInt = address.prefix
+        val publicKeyBytes = key.toBytes()
+        val preChecksum = ArrayUtil.concat(keyVariantVarInt, publicKeyBytes)
+        val checksum = ArrayUtil.slice(
+            Sha3256.hash(preChecksum),
+            0,
+            Address.CHECKSUM_LENGTH
+        )
+        return Base58.BASE_58.encode(
+            ArrayUtil.concat(
+                keyVariantVarInt,
+                publicKeyBytes,
+                checksum
+            )
+        )
     }
 }

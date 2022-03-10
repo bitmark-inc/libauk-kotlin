@@ -23,10 +23,10 @@ class WalletStorageUnitTest {
 
     @Test
     fun createKey() {
-        given(secureFileStorage.isExisting(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
+        given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
             false
         )
-        given(secureFileStorage.isExisting(WalletStorageImpl.ETH_KEY_INFO_FILE_NAME)).willReturn(
+        given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.ETH_KEY_INFO_FILE_NAME)).willReturn(
             false
         )
         doNothing().`when`(secureFileStorage).writeOnFilesDir(any(), any())
@@ -37,10 +37,10 @@ class WalletStorageUnitTest {
 
     @Test
     fun createKeyExistingError() {
-        given(secureFileStorage.isExisting(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
+        given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
             true
         )
-        given(secureFileStorage.isExisting(WalletStorageImpl.ETH_KEY_INFO_FILE_NAME)).willReturn(
+        given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.ETH_KEY_INFO_FILE_NAME)).willReturn(
             true
         )
 
@@ -55,10 +55,10 @@ class WalletStorageUnitTest {
     fun importKey() {
         val words = listOf("victory", "fatigue", "diet", "funny", "senior", "coral", "motion", "canal", "leg", "elite", "hen", "model")
 
-        given(secureFileStorage.isExisting(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
+        given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
             false
         )
-        given(secureFileStorage.isExisting(WalletStorageImpl.ETH_KEY_INFO_FILE_NAME)).willReturn(
+        given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.ETH_KEY_INFO_FILE_NAME)).willReturn(
             false
         )
         doNothing().`when`(secureFileStorage).writeOnFilesDir(any(), any())
@@ -72,10 +72,10 @@ class WalletStorageUnitTest {
     fun importKeyExistingError() {
         val words = listOf("victory", "fatigue", "diet", "funny", "senior", "coral", "motion", "canal", "leg", "elite", "hen", "model")
 
-        given(secureFileStorage.isExisting(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
+        given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
             true
         )
-        given(secureFileStorage.isExisting(WalletStorageImpl.ETH_KEY_INFO_FILE_NAME)).willReturn(
+        given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.ETH_KEY_INFO_FILE_NAME)).willReturn(
             true
         )
 
@@ -88,10 +88,10 @@ class WalletStorageUnitTest {
 
     @Test
     fun isWalletCreated() {
-        given(secureFileStorage.isExisting(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
+        given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
             true
         )
-        given(secureFileStorage.isExisting(WalletStorageImpl.ETH_KEY_INFO_FILE_NAME)).willReturn(
+        given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.ETH_KEY_INFO_FILE_NAME)).willReturn(
             true
         )
 
@@ -192,10 +192,10 @@ class WalletStorageUnitTest {
 
     @Test
     fun removeKeys() {
-        given(secureFileStorage.isExisting(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
+        given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
             true
         )
-        given(secureFileStorage.isExisting(WalletStorageImpl.ETH_KEY_INFO_FILE_NAME)).willReturn(
+        given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.ETH_KEY_INFO_FILE_NAME)).willReturn(
             true
         )
         doNothing().`when`(secureFileStorage).writeOnFilesDir(any(), any())
@@ -207,10 +207,10 @@ class WalletStorageUnitTest {
 
     @Test
     fun removeKeysError() {
-        given(secureFileStorage.isExisting(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
+        given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
             false
         )
-        given(secureFileStorage.isExisting(WalletStorageImpl.ETH_KEY_INFO_FILE_NAME)).willReturn(
+        given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.ETH_KEY_INFO_FILE_NAME)).willReturn(
             false
         )
 
