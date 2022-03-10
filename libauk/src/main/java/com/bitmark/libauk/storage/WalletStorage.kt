@@ -1,5 +1,6 @@
 package com.bitmark.libauk.storage
 
+import com.bitmark.apiservice.configuration.GlobalConfiguration
 import com.bitmark.apiservice.configuration.Network
 import com.bitmark.apiservice.utils.Address
 import com.bitmark.apiservice.utils.ArrayUtil
@@ -12,7 +13,6 @@ import com.bitmark.libauk.model.KeyInfo
 import com.bitmark.libauk.model.Seed
 import com.bitmark.libauk.util.fromJson
 import com.bitmark.libauk.util.newGsonInstance
-import com.bitmark.sdk.features.Account
 import io.camlcase.kotlintezos.wallet.HDWallet
 import io.reactivex.Completable
 import io.reactivex.Single
@@ -45,7 +45,9 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
     }
 
     override fun createKey(name: String): Completable = secureFileStorage.rxSingle { storage ->
-        storage.isExistingOnFilesDir(SEED_FILE_NAME) && storage.isExistingOnFilesDir(ETH_KEY_INFO_FILE_NAME)
+        storage.isExistingOnFilesDir(SEED_FILE_NAME) && storage.isExistingOnFilesDir(
+            ETH_KEY_INFO_FILE_NAME
+        )
     }
         .map { isExisting ->
             if (!isExisting) {
@@ -76,7 +78,9 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
 
     override fun importKey(words: List<String>, name: String, creationDate: Date?): Completable =
         secureFileStorage.rxSingle { storage ->
-            storage.isExistingOnFilesDir(SEED_FILE_NAME) && storage.isExistingOnFilesDir(ETH_KEY_INFO_FILE_NAME)
+            storage.isExistingOnFilesDir(SEED_FILE_NAME) && storage.isExistingOnFilesDir(
+                ETH_KEY_INFO_FILE_NAME
+            )
         }
             .map { isExisting ->
                 if (!isExisting) {
@@ -106,7 +110,9 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
             }
 
     override fun isWalletCreated(): Single<Boolean> = secureFileStorage.rxSingle { storage ->
-        storage.isExistingOnFilesDir(SEED_FILE_NAME) && storage.isExistingOnFilesDir(ETH_KEY_INFO_FILE_NAME)
+        storage.isExistingOnFilesDir(SEED_FILE_NAME) && storage.isExistingOnFilesDir(
+            ETH_KEY_INFO_FILE_NAME
+        )
     }
 
     override fun getName(): Single<String> = secureFileStorage.rxSingle { storage ->
@@ -179,11 +185,13 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         val seed = wallet.getKey(CoinType.BITCOIN, BITMARK_DERIVATION_PATH).data()
         val keyPair = Ed25519.generateKeyPairFromSeed(seed)
 
-        generateAccountNumber(keyPair.publicKey(), Network.LIVE_NET)
+        generateAccountNumber(keyPair.publicKey())
     }
 
     override fun removeKeys(): Completable = secureFileStorage.rxSingle { storage ->
-        storage.isExistingOnFilesDir(SEED_FILE_NAME) && storage.isExistingOnFilesDir(ETH_KEY_INFO_FILE_NAME)
+        storage.isExistingOnFilesDir(SEED_FILE_NAME) && storage.isExistingOnFilesDir(
+            ETH_KEY_INFO_FILE_NAME
+        )
     }
         .map { isExisting ->
             if (isExisting) {
@@ -206,11 +214,13 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         return MnemonicUtils.generateMnemonic(initialEntropy)
     }
 
-    private fun generateAccountNumber(
-        key: PublicKey,
-        network: Network
-    ): String? {
-        val address = Address.getDefault(key, network)
+    private fun generateAccountNumber(key: PublicKey): String? {
+        GlobalConfiguration.createInstance(
+            GlobalConfiguration.builder()
+                .withApiToken("bitmark")
+                .withNetwork(Network.LIVE_NET)
+        )
+        val address = Address.getDefault(key, GlobalConfiguration.network())
         val keyVariantVarInt = address.prefix
         val publicKeyBytes = key.toBytes()
         val preChecksum = ArrayUtil.concat(keyVariantVarInt, publicKeyBytes)
