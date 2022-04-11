@@ -1,7 +1,6 @@
 package com.bitmark.libauk.storage
 
 import com.bitmark.apiservice.configuration.GlobalConfiguration
-import com.bitmark.apiservice.configuration.Network
 import com.bitmark.apiservice.utils.Address
 import com.bitmark.apiservice.utils.ArrayUtil
 import com.bitmark.cryptography.crypto.Ed25519
@@ -56,7 +55,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
                 val seed = Seed(entropy, Date(), name)
 
                 val credential =
-                    WalletUtils.loadBip39Credentials("", mnemonic)
+                    Bip44WalletUtils.loadBip44Credentials("", mnemonic)
                 val keyInfo = KeyInfo(credential.address, Date())
                 Pair(seed, keyInfo)
             } else {
@@ -89,7 +88,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
                     val seed = Seed(entropy, Date(), name)
 
                     val credential =
-                        WalletUtils.loadBip39Credentials("", mnemonic)
+                        Bip44WalletUtils.loadBip44Credentials("", mnemonic)
                     val keyInfo = KeyInfo(credential.address, Date())
                     Pair(seed, keyInfo)
                 } else {
@@ -135,10 +134,13 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         }
 
     override fun getETHAddress(): Single<String> = secureFileStorage.rxSingle { storage ->
-        val json = storage.readOnFilesDir(ETH_KEY_INFO_FILE_NAME)
-        val keyInfo = newGsonInstance().fromJson<KeyInfo>(String(json))
+        val json = storage.readOnFilesDir(SEED_FILE_NAME)
+        val seed = newGsonInstance().fromJson<Seed>(String(json))
+        val mnemonic = MnemonicUtils.generateMnemonic(seed.data)
+        val credential =
+            Bip44WalletUtils.loadBip44Credentials("", mnemonic)
 
-        keyInfo.ethAddress
+        credential.address
     }
 
     override fun signPersonalMessage(message: ByteArray): Single<Sign.SignatureData> =
@@ -147,7 +149,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
             val seed = newGsonInstance().fromJson<Seed>(String(json))
             val mnemonic = MnemonicUtils.generateMnemonic(seed.data)
             val credential =
-                WalletUtils.loadBip39Credentials("", mnemonic)
+                Bip44WalletUtils.loadBip44Credentials("", mnemonic)
 
             Sign.signPrefixedMessage(message, credential.ecKeyPair)
         }
@@ -158,7 +160,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
             val seed = newGsonInstance().fromJson<Seed>(String(json))
             val mnemonic = MnemonicUtils.generateMnemonic(seed.data)
             val credential =
-                WalletUtils.loadBip39Credentials("", mnemonic)
+                Bip44WalletUtils.loadBip44Credentials("", mnemonic)
             TransactionEncoder.signMessage(transaction, chainId, credential)
         }
 
