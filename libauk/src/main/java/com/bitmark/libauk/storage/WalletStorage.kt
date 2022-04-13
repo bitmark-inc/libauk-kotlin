@@ -286,11 +286,11 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         var rp = listOf(0).map { it.toByte() }.toByteArray() + sigData.r
         var sp = listOf(0).map { it.toByte() }.toByteArray() + sigData.s
 
-        while (rp.size > 1 && rp[0].toInt() == 0 && rp[1].toInt() < 128) {
+        while (rp.size > 1 && rp[0].toInt() == 0 && rp[1].toInt() >= 0) {
             rp = rp.drop(1).toByteArray()
         }
 
-        while (sp.size > 1 && sp[0].toInt() == 0 && sp[1].toInt() < 128) {
+        while (sp.size > 1 && sp[0].toInt() == 0 && sp[1].toInt() >= 0) {
             sp = sp.drop(1).toByteArray()
         }
 
