@@ -102,6 +102,40 @@ class WalletStorageUnitTest {
     }
 
     @Test
+    fun getAccountDID() {
+        val words = "daring mix cradle palm crowd sea observe whisper rubber either uncle oak"
+        val entropy = MnemonicUtils.generateEntropy(words)
+        val seed = Seed(entropy, Date(), "Test")
+        val seedString = newGsonInstance().toJson(seed)
+
+        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
+            seedString.toByteArray()
+        )
+
+        walletStorage.getAccountDID()
+            .test()
+            .assertComplete()
+            .assertResult("did:key:zQ3shju6YhWXKdxGskg7UeBN8vGs5QMmW7J7pxUzrAoEY3bLG")
+    }
+
+    @Test
+    fun getAccountDIDSignature() {
+        val words = "daring mix cradle palm crowd sea observe whisper rubber either uncle oak"
+        val entropy = MnemonicUtils.generateEntropy(words)
+        val seed = Seed(entropy, Date(), "Test")
+        val seedString = newGsonInstance().toJson(seed)
+
+        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
+            seedString.toByteArray()
+        )
+
+        walletStorage.getAccountDIDSignature("hello")
+            .test()
+            .assertComplete()
+            .assertResult("304402206f7914881a66a5692a2ebef505eb7d85ac377e6b57152bc5b908510191aaeead022072fb561b1e7324548df16f38c11326b951fa9f7f2f936caf6f7a2fc53a9aebcf")
+    }
+
+    @Test
     fun getETHAddress() {
         val info =
             "{\"ethAddress\":\"0xf9631da81e6c93c0976e7af6c3c2b725639260f6\",\"creationDate\":\"Sep 20, 2021 11:17:08 AM\"}"

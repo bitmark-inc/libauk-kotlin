@@ -4,19 +4,24 @@ import com.bitmark.apiservice.configuration.GlobalConfiguration
 import com.bitmark.apiservice.utils.Address
 import com.bitmark.apiservice.utils.ArrayUtil
 import com.bitmark.cryptography.crypto.Ed25519
+import com.bitmark.cryptography.crypto.Sha256
 import com.bitmark.cryptography.crypto.Sha3256
 import com.bitmark.cryptography.crypto.encoder.Base58
 import com.bitmark.cryptography.crypto.key.PublicKey
+import com.bitmark.libauk.Const.ACCOUNT_DERIVATION_PATH
 import com.bitmark.libauk.Const.BITMARK_DERIVATION_PATH
 import com.bitmark.libauk.model.KeyInfo
 import com.bitmark.libauk.model.Seed
 import com.bitmark.libauk.util.fromJson
 import com.bitmark.libauk.util.newGsonInstance
 import io.camlcase.kotlintezos.wallet.HDWallet
+import io.camlcase.kotlintezos.wallet.crypto.hexStringToByteArray
+import io.camlcase.kotlintezos.wallet.crypto.toHexString
 import io.reactivex.Completable
 import io.reactivex.Single
 import org.web3j.crypto.*
 import wallet.core.jni.CoinType
+import java.math.BigInteger
 import java.security.SecureRandom
 import java.util.*
 import kotlin.Pair
@@ -27,6 +32,8 @@ interface WalletStorage {
     fun isWalletCreated(): Single<Boolean>
     fun getName(): Single<String>
     fun updateName(name: String): Completable
+    fun getAccountDID(): Single<String>
+    fun getAccountDIDSignature(message: String): Single<String>
     fun getETHAddress(): Single<String>
     fun signPersonalMessage(message: ByteArray): Single<Sign.SignatureData>
     fun signTransaction(transaction: RawTransaction, chainId: Long): Single<ByteArray>
@@ -133,6 +140,39 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
             )
         }
 
+    override fun getAccountDID(): Single<String> = secureFileStorage.rxSingle { storage ->
+        val json = storage.readOnFilesDir(SEED_FILE_NAME)
+        val walletSeed = newGsonInstance().fromJson<Seed>(String(json))
+        val mnemonic = MnemonicUtils.generateMnemonic(walletSeed.data)
+
+        val seed = MnemonicUtils.generateSeed(mnemonic, "")
+        val masterKeypair = Bip32ECKeyPair.generateKeyPair(seed)
+        val bip44Keypair = Bip32ECKeyPair.deriveKeyPair(masterKeypair, ACCOUNT_DERIVATION_PATH)
+
+        val prefix: ByteArray = listOf(231, 1).map { it.toByte() }.toByteArray()
+        val compressedPubKey = compressPubKey(bip44Keypair.publicKey)
+        "did:key:z${Base58.BASE_58.encode(prefix + compressedPubKey.hexStringToByteArray())}"
+    }
+
+    override fun getAccountDIDSignature(message: String): Single<String> =
+        secureFileStorage.rxSingle { storage ->
+            val json = storage.readOnFilesDir(SEED_FILE_NAME)
+            val walletSeed = newGsonInstance().fromJson<Seed>(String(json))
+            val mnemonic = MnemonicUtils.generateMnemonic(walletSeed.data)
+
+            val seed = MnemonicUtils.generateSeed(mnemonic, "")
+            val masterKeypair = Bip32ECKeyPair.generateKeyPair(seed)
+            val bip44Keypair = Bip32ECKeyPair.deriveKeyPair(masterKeypair, ACCOUNT_DERIVATION_PATH)
+
+            val sigData = Sign.signMessage(
+                Sha256.hash(message.toByteArray(Charsets.UTF_8)),
+                bip44Keypair,
+                false
+            )
+
+            derSignature(sigData)
+        }
+
     override fun getETHAddress(): Single<String> = secureFileStorage.rxSingle { storage ->
         val json = storage.readOnFilesDir(SEED_FILE_NAME)
         val seed = newGsonInstance().fromJson<Seed>(String(json))
@@ -233,5 +273,29 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
                 checksum
             )
         )
+    }
+
+    private fun compressPubKey(pubKey: BigInteger): String {
+        val pubKeyYPrefix = if (pubKey.testBit(0)) "03" else "02"
+        val pubKeyHex: String = pubKey.toString(16)
+        val pubKeyX = pubKeyHex.substring(0, 64)
+        return pubKeyYPrefix + pubKeyX
+    }
+
+    private fun derSignature(sigData: Sign.SignatureData): String {
+        var rp = listOf(0).map { it.toByte() }.toByteArray() + sigData.r
+        var sp = listOf(0).map { it.toByte() }.toByteArray() + sigData.s
+
+        while (rp.size > 1 && rp[0].toInt() == 0 && rp[1].toInt() < 128) {
+            rp = rp.drop(1).toByteArray()
+        }
+
+        while (sp.size > 1 && sp[0].toInt() == 0 && sp[1].toInt() < 128) {
+            sp = sp.drop(1).toByteArray()
+        }
+
+        val derBytes = listOf(0x30, 4 + rp.size + sp.size, 0x02, rp.size).map { it.toByte() }
+            .toByteArray() + rp + listOf(0x02, sp.size).map { it.toByte() }.toByteArray() + sp
+        return derBytes.toHexString()
     }
 }
