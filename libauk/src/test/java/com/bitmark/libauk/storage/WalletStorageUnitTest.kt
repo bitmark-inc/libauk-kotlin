@@ -115,7 +115,7 @@ class WalletStorageUnitTest {
         walletStorage.getAccountDID()
             .test()
             .assertComplete()
-            .assertResult("did:key:zQ3shju6YhWXKdxGskg7UeBN8vGs5QMmW7J7pxUzrAoEY3bLG")
+            .assertResult("did:key:zQ3shUnBWE7Dkskaozsnzsb78kVcgQFbtXf7zdCCDN3qepBGL")
     }
 
     @Test
@@ -132,21 +132,24 @@ class WalletStorageUnitTest {
         walletStorage.getAccountDIDSignature("hello")
             .test()
             .assertComplete()
-            .assertResult("304402206f7914881a66a5692a2ebef505eb7d85ac377e6b57152bc5b908510191aaeead022072fb561b1e7324548df16f38c11326b951fa9f7f2f936caf6f7a2fc53a9aebcf")
+            .assertResult("3045022100bcab09830ca590e641db881d9642ea2372cecedc1a37647e9d6ab8365521b7c0022041cba853b76596a64baf909aa311a18ae4d79c88aec15a080a897e3266e44aa2")
     }
 
     @Test
     fun getETHAddress() {
-        val info =
-            "{\"ethAddress\":\"0xf9631da81e6c93c0976e7af6c3c2b725639260f6\",\"creationDate\":\"Sep 20, 2021 11:17:08 AM\"}"
-        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.ETH_KEY_INFO_FILE_NAME)).willReturn(
-            info.toByteArray()
+        val words = "victory fatigue diet funny senior coral motion canal leg elite hen model"
+        val entropy = MnemonicUtils.generateEntropy(words)
+        val seed = Seed(entropy, Date(), "Test")
+        val seedString = newGsonInstance().toJson(seed)
+
+        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
+            seedString.toByteArray()
         )
 
         walletStorage.getETHAddress()
             .test()
             .assertComplete()
-            .assertResult("0xf9631da81e6c93c0976e7af6c3c2b725639260f6")
+            .assertResult("0x647ae57a3f1b6acaa02a4aa58ae6ccf8d3dba766")
     }
 
     @Test

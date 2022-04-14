@@ -8,8 +8,8 @@ object Const {
     // m/44'/731'/1'/0/0
     val ACCOUNT_DERIVATION_PATH = intArrayOf(
         44 or Bip32ECKeyPair.HARDENED_BIT,
-        731 or Bip32ECKeyPair.HARDENED_BIT,
-        1 or Bip32ECKeyPair.HARDENED_BIT,
+        985 or Bip32ECKeyPair.HARDENED_BIT,
+        0 or Bip32ECKeyPair.HARDENED_BIT,
         0,
         0
     )
