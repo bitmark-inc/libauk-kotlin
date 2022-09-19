@@ -3,6 +3,7 @@ package com.bitmark.libauk.storage
 import com.bitmark.apiservice.configuration.GlobalConfiguration
 import com.bitmark.apiservice.utils.Address
 import com.bitmark.apiservice.utils.ArrayUtil
+import com.bitmark.cryptography.crypto.Chacha20Poly1305
 import com.bitmark.cryptography.crypto.Ed25519
 import com.bitmark.cryptography.crypto.Sha256
 import com.bitmark.cryptography.crypto.Sha3256
@@ -10,6 +11,7 @@ import com.bitmark.cryptography.crypto.encoder.Base58
 import com.bitmark.cryptography.crypto.key.PublicKey
 import com.bitmark.libauk.Const.ACCOUNT_DERIVATION_PATH
 import com.bitmark.libauk.Const.BITMARK_DERIVATION_PATH
+import com.bitmark.libauk.Const.ENCRYPT_KEY_DERIVATION_PATH
 import com.bitmark.libauk.model.KeyInfo
 import com.bitmark.libauk.model.Seed
 import com.bitmark.libauk.util.fromJson
@@ -21,6 +23,7 @@ import io.reactivex.Completable
 import io.reactivex.Single
 import org.web3j.crypto.*
 import wallet.core.jni.CoinType
+import java.io.File
 import java.math.BigInteger
 import java.security.SecureRandom
 import java.util.*
@@ -37,6 +40,8 @@ interface WalletStorage {
     fun getETHAddress(): Single<String>
     fun signPersonalMessage(message: ByteArray): Single<Sign.SignatureData>
     fun signTransaction(transaction: RawTransaction, chainId: Long): Single<ByteArray>
+    fun encryptFile(input: File, output: File) : Completable
+    fun decryptFile(input: File, output: File) : Completable
     fun exportMnemonicWords(): Single<String>
     fun getTezosWallet(): Single<HDWallet>
     fun getBitmarkAddress(): Single<String>
@@ -203,6 +208,47 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
                 Bip44WalletUtils.loadBip44Credentials("", mnemonic)
             TransactionEncoder.signMessage(transaction, chainId, credential)
         }
+
+    private fun getEncryptKey(): Single<BigInteger> {
+        return secureFileStorage.rxSingle { storage ->
+            val json = storage.readOnFilesDir(SEED_FILE_NAME)
+            val walletSeed = newGsonInstance().fromJson<Seed>(String(json))
+            val mnemonic = MnemonicUtils.generateMnemonic(walletSeed.data)
+            val seed = MnemonicUtils.generateSeed(mnemonic, "")
+            val masterKeypair = Bip32ECKeyPair.generateKeyPair(seed)
+            val bip44Keypair =
+                Bip32ECKeyPair.deriveKeyPair(masterKeypair, ENCRYPT_KEY_DERIVATION_PATH)
+            bip44Keypair.privateKey
+        }
+    }
+
+    override fun encryptFile(input: File, output: File): Completable {
+        return getEncryptKey().map { encryptKey ->
+            Chacha20Poly1305.aeadIetfEncrypt(
+                input.readBytes(),
+                null,
+                byteArrayOf(),
+                encryptKey.toByteArray().takeLast(32).toByteArray()
+            )
+        }.flatMapCompletable { encrypted ->
+            output.writeBytes(encrypted)
+            Completable.complete()
+        }
+    }
+
+    override fun decryptFile(input: File, output: File): Completable {
+        return getEncryptKey().map { encryptKey ->
+            Chacha20Poly1305.aeadIetfDecrypt(
+                input.readBytes(),
+                null,
+                byteArrayOf(),
+                encryptKey.toByteArray().takeLast(32).toByteArray()
+            )
+        }.flatMapCompletable { encrypted ->
+            output.writeBytes(encrypted)
+            Completable.complete()
+        }
+    }
 
     override fun exportMnemonicWords(): Single<String> = secureFileStorage.rxSingle { storage ->
         val json = storage.readOnFilesDir(SEED_FILE_NAME)
