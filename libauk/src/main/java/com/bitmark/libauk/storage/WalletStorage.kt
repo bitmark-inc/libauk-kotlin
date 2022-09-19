@@ -10,6 +10,7 @@ import com.bitmark.cryptography.crypto.encoder.Base58
 import com.bitmark.cryptography.crypto.key.PublicKey
 import com.bitmark.libauk.Const.ACCOUNT_DERIVATION_PATH
 import com.bitmark.libauk.Const.BITMARK_DERIVATION_PATH
+import com.bitmark.libauk.Const.ENCRYPT_KEY_DERIVATION_PATH
 import com.bitmark.libauk.model.KeyInfo
 import com.bitmark.libauk.model.Seed
 import com.bitmark.libauk.util.fromJson
@@ -20,10 +21,16 @@ import io.camlcase.kotlintezos.wallet.crypto.toHexString
 import io.reactivex.Completable
 import io.reactivex.Single
 import org.web3j.crypto.*
+import org.web3j.utils.Numeric
 import wallet.core.jni.CoinType
+import java.io.File
 import java.math.BigInteger
+import java.nio.ByteBuffer
 import java.security.SecureRandom
 import java.util.*
+import javax.crypto.Cipher
+import javax.crypto.spec.IvParameterSpec
+import javax.crypto.spec.SecretKeySpec
 import kotlin.Pair
 
 interface WalletStorage {
@@ -37,6 +44,8 @@ interface WalletStorage {
     fun getETHAddress(): Single<String>
     fun signPersonalMessage(message: ByteArray): Single<Sign.SignatureData>
     fun signTransaction(transaction: RawTransaction, chainId: Long): Single<ByteArray>
+    fun encryptFile(input: File, output: File) : Completable
+    fun decryptFile(input: File, output: File) : Completable
     fun exportMnemonicWords(): Single<String>
     fun getTezosWallet(): Single<HDWallet>
     fun getBitmarkAddress(): Single<String>
@@ -203,6 +212,62 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
                 Bip44WalletUtils.loadBip44Credentials("", mnemonic)
             TransactionEncoder.signMessage(transaction, chainId, credential)
         }
+
+    private fun getEncryptKey(): Single<ByteArray> {
+        return secureFileStorage.rxSingle { storage ->
+            val json = storage.readOnFilesDir(SEED_FILE_NAME)
+            val walletSeed = newGsonInstance().fromJson<Seed>(String(json))
+            val mnemonic = MnemonicUtils.generateMnemonic(walletSeed.data)
+            val seed = MnemonicUtils.generateSeed(mnemonic, "")
+            val masterKeypair = Bip32ECKeyPair.generateKeyPair(seed)
+            val bip44Keypair =
+                Bip32ECKeyPair.deriveKeyPair(masterKeypair, ENCRYPT_KEY_DERIVATION_PATH)
+            Numeric.toBytesPadded(bip44Keypair.privateKey, 32)
+        }
+    }
+
+    private fun getNonce(): ByteArray {
+        val nonce = ByteArray(12)
+        SecureRandom().nextBytes(nonce)
+        return nonce
+    }
+
+    override fun encryptFile(input: File, output: File): Completable {
+        return getEncryptKey().map { encryptKey ->
+            val key = SecretKeySpec(encryptKey, "ChaCha20")
+            val nonce = getNonce()
+            val iv = IvParameterSpec(nonce)
+            val cipher = Cipher.getInstance("ChaCha20-Poly1305")
+            cipher.init(Cipher.ENCRYPT_MODE, key, iv)
+            val encrypted = cipher.doFinal(input.readBytes())
+            ByteBuffer.allocate(encrypted.size + nonce.size)
+                .put(nonce)
+                .put(encrypted)
+                .array()
+        }.flatMapCompletable { encrypted ->
+            output.writeBytes(encrypted)
+            Completable.complete()
+        }
+    }
+
+    override fun decryptFile(input: File, output: File): Completable {
+        return getEncryptKey().map { encryptKey ->
+            val data = input.readBytes();
+            val buffer = ByteBuffer.wrap(data)
+            val cipherText = ByteArray(data.size - 12)
+            val nonce = ByteArray(12)
+            buffer.get(nonce)
+            buffer.get(cipherText)
+            val iv = IvParameterSpec(nonce)
+            val cipher = Cipher.getInstance("ChaCha20-Poly1305")
+            val key = SecretKeySpec(encryptKey, "ChaCha20")
+            cipher.init(Cipher.DECRYPT_MODE, key, iv)
+            cipher.doFinal(cipherText)
+        }.flatMapCompletable { decrypted ->
+            output.writeBytes(decrypted)
+            Completable.complete()
+        }
+    }
 
     override fun exportMnemonicWords(): Single<String> = secureFileStorage.rxSingle { storage ->
         val json = storage.readOnFilesDir(SEED_FILE_NAME)
