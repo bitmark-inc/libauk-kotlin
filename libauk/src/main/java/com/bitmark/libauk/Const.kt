@@ -13,4 +13,12 @@ object Const {
         0,
         0
     )
+
+    val ENCRYPT_KEY_DERIVATION_PATH = intArrayOf(
+        44 or Bip32ECKeyPair.HARDENED_BIT,
+        985 or Bip32ECKeyPair.HARDENED_BIT,
+        0 or Bip32ECKeyPair.HARDENED_BIT,
+        0,
+        1
+    )
 }
