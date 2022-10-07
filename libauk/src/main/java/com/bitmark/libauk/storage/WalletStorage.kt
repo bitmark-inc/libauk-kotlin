@@ -16,6 +16,7 @@ import com.bitmark.libauk.model.Seed
 import com.bitmark.libauk.util.fromJson
 import com.bitmark.libauk.util.newGsonInstance
 import io.camlcase.kotlintezos.wallet.HDWallet
+import io.camlcase.kotlintezos.wallet.crypto.SodiumFacade
 import io.camlcase.kotlintezos.wallet.crypto.hexStringToByteArray
 import io.camlcase.kotlintezos.wallet.crypto.toHexString
 import io.reactivex.Completable
@@ -23,6 +24,8 @@ import io.reactivex.Single
 import org.web3j.crypto.*
 import org.web3j.utils.Numeric
 import wallet.core.jni.CoinType
+import wallet.core.jni.Curve
+import wallet.core.jni.PrivateKey
 import java.io.File
 import java.math.BigInteger
 import java.nio.ByteBuffer
@@ -42,12 +45,14 @@ interface WalletStorage {
     fun getAccountDID(): Single<String>
     fun getAccountDIDSignature(message: String): Single<String>
     fun getETHAddress(): Single<String>
-    fun signPersonalMessage(message: ByteArray): Single<Sign.SignatureData>
-    fun signTransaction(transaction: RawTransaction, chainId: Long): Single<ByteArray>
-    fun encryptFile(input: File, output: File) : Completable
-    fun decryptFile(input: File, output: File) : Completable
+    fun ethSignPersonalMessage(message: ByteArray): Single<Sign.SignatureData>
+    fun ethSignTransaction(transaction: RawTransaction, chainId: Long): Single<ByteArray>
+    fun encryptFile(input: File, output: File): Completable
+    fun decryptFile(input: File, output: File): Completable
     fun exportMnemonicWords(): Single<String>
-    fun getTezosWallet(): Single<HDWallet>
+    fun getTezosPublicKey(): Single<String>
+    fun tezosSignMessage(message: ByteArray): Single<ByteArray>
+    fun tezosTransaction(forgedHex: String): Single<ByteArray>
     fun getBitmarkAddress(): Single<String>
     fun removeKeys(): Completable
 }
@@ -192,7 +197,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         credential.address
     }
 
-    override fun signPersonalMessage(message: ByteArray): Single<Sign.SignatureData> =
+    override fun ethSignPersonalMessage(message: ByteArray): Single<Sign.SignatureData> =
         secureFileStorage.rxSingle { storage ->
             val json = storage.readOnFilesDir(SEED_FILE_NAME)
             val seed = newGsonInstance().fromJson<Seed>(String(json))
@@ -203,7 +208,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
             Sign.signPrefixedMessage(message, credential.ecKeyPair)
         }
 
-    override fun signTransaction(transaction: RawTransaction, chainId: Long): Single<ByteArray> =
+    override fun ethSignTransaction(transaction: RawTransaction, chainId: Long): Single<ByteArray> =
         secureFileStorage.rxSingle { storage ->
             val json = storage.readOnFilesDir(SEED_FILE_NAME)
             val seed = newGsonInstance().fromJson<Seed>(String(json))
@@ -275,12 +280,25 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         MnemonicUtils.generateMnemonic(seed.data)
     }
 
-    override fun getTezosWallet(): Single<HDWallet> = secureFileStorage.rxSingle { storage ->
+    private fun getTezosWallet(): Single<HDWallet> = secureFileStorage.rxSingle { storage ->
         val json = storage.readOnFilesDir(SEED_FILE_NAME)
         val seed = newGsonInstance().fromJson<Seed>(String(json))
         MnemonicUtils.generateMnemonic(seed.data)
     }.map {
         HDWallet(it.split(" "))
+    }
+
+    override fun getTezosPublicKey(): Single<String> = getTezosWallet().map {
+        it.publicKey.base58Representation
+    }
+
+    override fun tezosSignMessage(message: ByteArray): Single<ByteArray> = getTezosWallet().map {
+        val hashedMessage = SodiumFacade.hash(message, 32)
+        PrivateKey(it.secretKey.encoded).sign(hashedMessage, Curve.ED25519)
+    }
+
+    override fun tezosTransaction(forgedHex: String): Single<ByteArray> = getTezosWallet().map {
+        it.sign(forgedHex)
     }
 
     override fun getBitmarkAddress(): Single<String> = secureFileStorage.rxSingle { storage ->
