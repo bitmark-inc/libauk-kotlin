@@ -5,7 +5,6 @@ import com.bitmark.libauk.util.newGsonInstance
 import com.nhaarman.mockitokotlin2.*
 import org.junit.Before
 import org.junit.Test
-import org.junit.runner.RunWith
 import org.web3j.crypto.MnemonicUtils
 import org.web3j.crypto.RawTransaction
 import java.math.BigInteger
@@ -163,7 +162,7 @@ class WalletStorageUnitTest {
             seedString.toByteArray()
         )
 
-        walletStorage.signPersonalMessage("hello".toByteArray())
+        walletStorage.ethSignPersonalMessage("hello".toByteArray())
             .test()
             .assertComplete()
     }
@@ -186,7 +185,7 @@ class WalletStorageUnitTest {
             "0xf9631da81e6c93c0976e7af6c3c2b725639260f6",
             BigInteger.ONE
         )
-        walletStorage.signTransaction(transaction, chainId = 1)
+        walletStorage.ethSignTransaction(transaction, chainId = 1)
             .test()
             .assertComplete()
     }
