@@ -342,7 +342,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
 
     private fun compressPubKey(pubKey: BigInteger): String {
         val pubKeyYPrefix = if (pubKey.testBit(0)) "03" else "02"
-        val pubKeyHex: String = pubKey.toString(16)
+        val pubKeyHex: String = Numeric.toBytesPadded(pubKey, 64).toHexString()
         val pubKeyX = pubKeyHex.substring(0, 64)
         return pubKeyYPrefix + pubKeyX
     }
