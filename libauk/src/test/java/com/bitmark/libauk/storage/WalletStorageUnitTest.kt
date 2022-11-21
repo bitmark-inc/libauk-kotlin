@@ -162,7 +162,7 @@ class WalletStorageUnitTest {
             seedString.toByteArray()
         )
 
-        walletStorage.ethSignPersonalMessage("hello".toByteArray())
+        walletStorage.ethSignMessage("hello".toByteArray(), true)
             .test()
             .assertComplete()
     }

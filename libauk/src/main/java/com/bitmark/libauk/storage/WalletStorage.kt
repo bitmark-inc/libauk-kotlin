@@ -45,7 +45,7 @@ interface WalletStorage {
     fun getAccountDID(): Single<String>
     fun getAccountDIDSignature(message: String): Single<String>
     fun getETHAddress(): Single<String>
-    fun ethSignPersonalMessage(message: ByteArray): Single<Sign.SignatureData>
+    fun ethSignMessage(message: ByteArray, needToHash: Boolean): Single<Sign.SignatureData>
     fun ethSignTransaction(transaction: RawTransaction, chainId: Long): Single<ByteArray>
     fun encryptFile(input: File, output: File): Completable
     fun decryptFile(input: File, output: File): Completable
@@ -197,7 +197,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         credential.address
     }
 
-    override fun ethSignPersonalMessage(message: ByteArray): Single<Sign.SignatureData> =
+    override fun ethSignMessage(message: ByteArray, needToHash: Boolean): Single<Sign.SignatureData> =
         secureFileStorage.rxSingle { storage ->
             val json = storage.readOnFilesDir(SEED_FILE_NAME)
             val seed = newGsonInstance().fromJson<Seed>(String(json))
@@ -205,7 +205,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
             val credential =
                 Bip44WalletUtils.loadBip44Credentials("", mnemonic)
 
-            Sign.signPrefixedMessage(message, credential.ecKeyPair)
+            Sign.signMessage(message, credential.ecKeyPair, needToHash)
         }
 
     override fun ethSignTransaction(transaction: RawTransaction, chainId: Long): Single<ByteArray> =
