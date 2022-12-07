@@ -9,7 +9,6 @@ import com.bitmark.cryptography.crypto.Sha3256
 import com.bitmark.cryptography.crypto.encoder.Base58
 import com.bitmark.cryptography.crypto.key.PublicKey
 import com.bitmark.libauk.Const.ACCOUNT_DERIVATION_PATH
-import com.bitmark.libauk.Const.BITMARK_DERIVATION_PATH
 import com.bitmark.libauk.Const.ENCRYPT_KEY_DERIVATION_PATH
 import com.bitmark.libauk.model.KeyInfo
 import com.bitmark.libauk.model.Seed
@@ -53,7 +52,6 @@ interface WalletStorage {
     fun getTezosPublicKey(): Single<String>
     fun tezosSignMessage(message: ByteArray): Single<ByteArray>
     fun tezosTransaction(forgedHex: String): Single<ByteArray>
-    fun getBitmarkAddress(): Single<String>
     fun removeKeys(): Completable
 }
 
@@ -299,18 +297,6 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
 
     override fun tezosTransaction(forgedHex: String): Single<ByteArray> = getTezosWallet().map {
         it.sign(forgedHex)
-    }
-
-    override fun getBitmarkAddress(): Single<String> = secureFileStorage.rxSingle { storage ->
-        val json = storage.readOnFilesDir(SEED_FILE_NAME)
-        val seed = newGsonInstance().fromJson<Seed>(String(json))
-        MnemonicUtils.generateMnemonic(seed.data)
-    }.map {
-        val wallet = wallet.core.jni.HDWallet(it, "")
-        val seed = wallet.getKey(CoinType.BITCOIN, BITMARK_DERIVATION_PATH).data()
-        val keyPair = Ed25519.generateKeyPairFromSeed(seed)
-
-        generateAccountNumber(keyPair.publicKey())
     }
 
     override fun removeKeys(): Completable = secureFileStorage.rxSingle { storage ->
