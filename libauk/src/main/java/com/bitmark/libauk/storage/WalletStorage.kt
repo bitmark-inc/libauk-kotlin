@@ -3,7 +3,6 @@ package com.bitmark.libauk.storage
 import com.bitmark.apiservice.configuration.GlobalConfiguration
 import com.bitmark.apiservice.utils.Address
 import com.bitmark.apiservice.utils.ArrayUtil
-import com.bitmark.cryptography.crypto.Ed25519
 import com.bitmark.cryptography.crypto.Sha256
 import com.bitmark.cryptography.crypto.Sha3256
 import com.bitmark.cryptography.crypto.encoder.Base58
@@ -22,7 +21,6 @@ import io.reactivex.Completable
 import io.reactivex.Single
 import org.web3j.crypto.*
 import org.web3j.utils.Numeric
-import wallet.core.jni.CoinType
 import wallet.core.jni.Curve
 import wallet.core.jni.PrivateKey
 import java.io.File
@@ -195,7 +193,10 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         credential.address
     }
 
-    override fun ethSignMessage(message: ByteArray, needToHash: Boolean): Single<Sign.SignatureData> =
+    override fun ethSignMessage(
+        message: ByteArray,
+        needToHash: Boolean
+    ): Single<Sign.SignatureData> =
         secureFileStorage.rxSingle { storage ->
             val json = storage.readOnFilesDir(SEED_FILE_NAME)
             val seed = newGsonInstance().fromJson<Seed>(String(json))
