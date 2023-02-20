@@ -152,6 +152,23 @@ class WalletStorageUnitTest {
     }
 
     @Test
+    fun getETHAddressWithIndex() {
+        val words = "victory fatigue diet funny senior coral motion canal leg elite hen model"
+        val entropy = MnemonicUtils.generateEntropy(words)
+        val seed = Seed(entropy, Date(), "Test")
+        val seedString = newGsonInstance().toJson(seed)
+
+        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
+            seedString.toByteArray()
+        )
+
+        walletStorage.getETHAddressWithIndex(1)
+            .test()
+            .assertComplete()
+            .assertResult("0x79a633e7d70e1676b5884a027a485aae4bd46136")
+    }
+
+    @Test
     fun signPersonalMessage() {
         val words = "victory fatigue diet funny senior coral motion canal leg elite hen model"
         val entropy = MnemonicUtils.generateEntropy(words)
