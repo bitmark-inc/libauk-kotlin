@@ -346,7 +346,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
             MnemonicUtils.generateMnemonic(seed.data)
         }.map {
             val path = "m/44\'/1729\'/0\'/${index}\'"
-            HDWallet(it.split(" "), path)
+            HDWallet(it.split(" "), derivationPath = path)
         }
 
     override fun getTezosPublicKey(): Single<String> = getTezosWallet().map {
