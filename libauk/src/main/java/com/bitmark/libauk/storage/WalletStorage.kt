@@ -211,10 +211,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
 
     override fun getETHAddressWithIndex(index: Int): Single<String> =
         secureFileStorage.rxSingle { storage ->
-            val json = storage.readOnFilesDir(SEED_FILE_NAME)
-            val seed = newGsonInstance().fromJson<Seed>(String(json))
-            val mnemonic = MnemonicUtils.generateMnemonic(seed.data)
-            val credential = createETHCredential(mnemonic, index)
+            val credential = createETHCredentialWithIndex(storage, index)
             credential.address
         }
 
@@ -238,10 +235,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         index: Int
     ): Single<Sign.SignatureData> =
         secureFileStorage.rxSingle { storage ->
-            val json = storage.readOnFilesDir(SEED_FILE_NAME)
-            val seed = newGsonInstance().fromJson<Seed>(String(json))
-            val mnemonic = MnemonicUtils.generateMnemonic(seed.data)
-            val credential = createETHCredential(mnemonic, index)
+            val credential = createETHCredentialWithIndex(storage, index)
 
             Sign.signMessage(message, credential.ecKeyPair, needToHash)
         }
@@ -262,10 +256,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         index: Int
     ): Single<ByteArray> =
         secureFileStorage.rxSingle { storage ->
-            val json = storage.readOnFilesDir(SEED_FILE_NAME)
-            val seed = newGsonInstance().fromJson<Seed>(String(json))
-            val mnemonic = MnemonicUtils.generateMnemonic(seed.data)
-            val credential = createETHCredential(mnemonic, index)
+            val credential = createETHCredentialWithIndex(storage, index)
             TransactionEncoder.signMessage(transaction, chainId, credential)
         }
 
@@ -447,9 +438,12 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         return derBytes.toHexString()
     }
 
-    private fun createETHCredential(mnemonic: String, index: Int): Credentials {
-        val seed = MnemonicUtils.generateSeed(mnemonic, "")
-        val masterKeypair = Bip32ECKeyPair.generateKeyPair(seed)
+    private fun createETHCredentialWithIndex(storage: SecureFileStorage, index: Int): Credentials {
+        val json = storage.readOnFilesDir(SEED_FILE_NAME)
+        val seed = newGsonInstance().fromJson<Seed>(String(json))
+        val mnemonic = MnemonicUtils.generateMnemonic(seed.data)
+        val seedB = MnemonicUtils.generateSeed(mnemonic, "")
+        val masterKeypair = Bip32ECKeyPair.generateKeyPair(seedB)
         val path = intArrayOf(
             44 or Bip32ECKeyPair.HARDENED_BIT,
             60 or Bip32ECKeyPair.HARDENED_BIT,
