@@ -13,10 +13,13 @@ import com.bitmark.libauk.model.KeyInfo
 import com.bitmark.libauk.model.Seed
 import com.bitmark.libauk.util.fromJson
 import com.bitmark.libauk.util.newGsonInstance
+import io.camlcase.kotlintezos.model.TezosError
+import io.camlcase.kotlintezos.model.TezosErrorType
 import io.camlcase.kotlintezos.wallet.HDWallet
 import io.camlcase.kotlintezos.wallet.crypto.SodiumFacade
 import io.camlcase.kotlintezos.wallet.crypto.hexStringToByteArray
 import io.camlcase.kotlintezos.wallet.crypto.toHexString
+import io.camlcase.kotlintezos.wallet.crypto.watermarkAndHash
 import io.reactivex.Completable
 import io.reactivex.Single
 import org.web3j.crypto.*
@@ -366,7 +369,12 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
 
     override fun tezosTransactionWithIndex(forgedHex: String, index: Int): Single<ByteArray> =
         getTezosWalletWithIndex(index).map {
-            it.sign(forgedHex)
+            val bytesToSign = forgedHex.hexStringToByteArray().watermarkAndHash()
+                ?: throw TezosError(
+                    TezosErrorType.SIGNING_ERROR,
+                    exception = IllegalArgumentException("The given hexadecimal string could not be watermarked and hashed.")
+                )
+            PrivateKey(it.secretKey.encoded).sign(bytesToSign, Curve.ED25519)
         }
 
     override fun removeKeys(): Completable = secureFileStorage.rxSingle { storage ->
