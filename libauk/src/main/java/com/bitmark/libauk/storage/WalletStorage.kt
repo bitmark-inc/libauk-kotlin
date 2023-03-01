@@ -339,7 +339,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
             val seed = newGsonInstance().fromJson<Seed>(String(json))
             MnemonicUtils.generateMnemonic(seed.data)
         }.map {
-            val path = "m/44\'/1729\'/0\'/${index}\'"
+            val path = "m/44\'/1729\'/${index}\'/0\'"
             HDWallet(it.split(" "), derivationPath = path)
         }
 
