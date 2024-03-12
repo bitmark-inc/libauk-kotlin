@@ -1,5 +1,6 @@
 package com.bitmark.libauk.storage
 
+import at.favre.lib.hkdf.HKDF
 import com.bitmark.apiservice.configuration.GlobalConfiguration
 import com.bitmark.apiservice.utils.Address
 import com.bitmark.apiservice.utils.ArrayUtil
@@ -272,7 +273,8 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
             val masterKeypair = Bip32ECKeyPair.generateKeyPair(seed)
             val bip44Keypair =
                 Bip32ECKeyPair.deriveKeyPair(masterKeypair, ENCRYPT_KEY_DERIVATION_PATH)
-            Numeric.toBytesPadded(bip44Keypair.privateKey, 32)
+            val bytes = Numeric.toBytesPadded(bip44Keypair.privateKey, 32)
+            HKDF.fromHmacSha256().expand(bytes, null, 32)
         }
     }
 
