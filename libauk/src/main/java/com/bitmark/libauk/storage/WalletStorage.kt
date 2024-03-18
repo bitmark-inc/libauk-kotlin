@@ -1,5 +1,6 @@
 package com.bitmark.libauk.storage
 
+import at.favre.lib.hkdf.HKDF
 import com.bitmark.apiservice.configuration.GlobalConfiguration
 import com.bitmark.apiservice.utils.Address
 import com.bitmark.apiservice.utils.ArrayUtil
@@ -61,7 +62,7 @@ interface WalletStorage {
     ): Single<ByteArray>
 
     fun encryptFile(input: File, output: File): Completable
-    fun decryptFile(input: File, output: File): Completable
+    fun decryptFile(input: File, output: File, usingLegacy: Boolean): Completable
     fun exportMnemonicWords(): Single<String>
     fun getTezosPublicKey(): Single<String>
     fun tezosSignMessage(message: ByteArray): Single<ByteArray>
@@ -263,7 +264,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
             TransactionEncoder.signMessage(transaction, chainId, credential)
         }
 
-    private fun getEncryptKey(): Single<ByteArray> {
+    private fun getEncryptKey(usingLegacy: Boolean = false): Single<ByteArray> {
         return secureFileStorage.rxSingle { storage ->
             val json = storage.readOnFilesDir(SEED_FILE_NAME)
             val walletSeed = newGsonInstance().fromJson<Seed>(String(json))
@@ -272,7 +273,13 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
             val masterKeypair = Bip32ECKeyPair.generateKeyPair(seed)
             val bip44Keypair =
                 Bip32ECKeyPair.deriveKeyPair(masterKeypair, ENCRYPT_KEY_DERIVATION_PATH)
-            Numeric.toBytesPadded(bip44Keypair.privateKey, 32)
+            val bytes = Numeric.toBytesPadded(bip44Keypair.privateKey, 32)
+
+            if (usingLegacy) {
+                bytes
+            } else {
+                HKDF.fromHmacSha256().extractAndExpand(ByteArray(0), bytes, null, 32)
+            }
         }
     }
 
@@ -300,8 +307,8 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         }
     }
 
-    override fun decryptFile(input: File, output: File): Completable {
-        return getEncryptKey().map { encryptKey ->
+    override fun decryptFile(input: File, output: File, usingLegacy: Boolean): Completable {
+        return getEncryptKey(usingLegacy).map { encryptKey ->
             val data = input.readBytes()
             val buffer = ByteBuffer.wrap(data)
             val cipherText = ByteArray(data.size - 12)
