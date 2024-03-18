@@ -278,7 +278,8 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
             if (usingLegacy) {
                 bytes
             } else {
-                HKDF.fromHmacSha256().expand(bytes, null, 32)
+                val salt: ByteArray? = null
+                HKDF.fromHmacSha256().extractAndExpand(salt, bytes, null, 32)
             }
         }
     }
