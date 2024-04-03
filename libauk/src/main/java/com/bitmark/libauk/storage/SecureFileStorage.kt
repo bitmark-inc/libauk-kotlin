@@ -1,6 +1,7 @@
 package com.bitmark.libauk.storage
 
 import android.content.Context
+import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import androidx.security.crypto.EncryptedFile
@@ -101,15 +102,26 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
         keyStore.load(null)
 
         val keyAlias = masterKeyAlias ?: UUID.randomUUID().toString().also { masterKeyAlias = it }
-
-        val parameterSpec = KeyGenParameterSpec.Builder(keyAlias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT).apply {
+        val isPrivate = false
+        val authenTIcationTimeoutInSeconds = 30
+        val parameterSpecBuilder = KeyGenParameterSpec.Builder(keyAlias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT).apply {
             setKeySize(256)
             setDigests(KeyProperties.DIGEST_SHA512)
-            setUserAuthenticationRequired(false)
+            setUserAuthenticationRequired(isPrivate)
             setRandomizedEncryptionRequired(true)
             setBlockModes(KeyProperties.BLOCK_MODE_GCM)
             setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-        }.build()
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            parameterSpecBuilder.setUserAuthenticationParameters(authenTIcationTimeoutInSeconds, KeyProperties.AUTH_DEVICE_CREDENTIAL or KeyProperties.AUTH_BIOMETRIC_STRONG)
+        }
+        else {
+            //This method was deprecated in API level 30.
+            parameterSpecBuilder.setUserAuthenticationValidityDurationSeconds(authenTIcationTimeoutInSeconds)
+        }
+
+        val  parameterSpec = parameterSpecBuilder.build()
 
         return MasterKeys.getOrCreate(parameterSpec)
     }
