@@ -1,6 +1,7 @@
 package com.bitmark.libauk.storage
 
 import android.content.Context
+import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import androidx.security.crypto.EncryptedFile
@@ -10,13 +11,13 @@ import io.reactivex.Single
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.security.KeyStore
-import java.util.*
+import java.util.UUID
 
 internal interface SecureFileStorage {
 
-    fun writeOnFilesDir(name: String, data: ByteArray)
+    fun writeOnFilesDir(name: String, data: ByteArray, isPrivate: Boolean)
 
-    fun readOnFilesDir(name: String): ByteArray
+    fun readOnFilesDir(name: String, isPrivate: Boolean): ByteArray
 
     fun isExistingOnFilesDir(name: String): Boolean
 
@@ -34,8 +35,8 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
             value?.let { sharedPreferences.edit().putString(KEY_MASTER_KEY_ALIAS, it).apply() }
         }
 
-    private fun write(path: String, name: String, data: ByteArray) {
-        val file = getEncryptedFile("$path/$name", false)
+    private fun write(path: String, name: String, data: ByteArray, isPrivate: Boolean) {
+        val file = getEncryptedFile("$path/$name", false, isPrivate)
         file.openFileOutput().apply {
             write(data)
             flush()
@@ -43,12 +44,12 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
         }
     }
 
-    override fun writeOnFilesDir(name: String, data: ByteArray) {
-        write(context.filesDir.absolutePath, "$alias-$name", data)
+    override fun writeOnFilesDir(name: String, data: ByteArray, isPrivate: Boolean) {
+        write(context.filesDir.absolutePath, "$alias-$name", data, isPrivate)
     }
 
-    private fun read(path: String): ByteArray {
-        val file = getEncryptedFile(path, true)
+    private fun read(path: String, isPrivate: Boolean): ByteArray {
+        val file = getEncryptedFile(path, true, isPrivate)
         if (File(path).length() == 0L) return byteArrayOf()
         val inputStream = file.openFileInput()
         val os = ByteArrayOutputStream()
@@ -60,8 +61,8 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
         return os.toByteArray()
     }
 
-    override fun readOnFilesDir(name: String): ByteArray =
-        read(File(context.filesDir, "$alias-$name").absolutePath)
+    override fun readOnFilesDir(name: String, isPrivate: Boolean): ByteArray =
+        read(File(context.filesDir, "$alias-$name").absolutePath, isPrivate)
 
     private fun isExisting(path: String): Boolean = File(path).exists()
 
@@ -80,36 +81,45 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
     override fun deleteOnFilesDir(name: String): Boolean =
         delete(File(context.filesDir, "$alias-$name").absolutePath)
 
-    private fun getEncryptedFile(path: String, read: Boolean) = File(path).let { f ->
+    private fun getEncryptedFile(path: String, read: Boolean, isPrivate: Boolean) = File(path).let { f ->
         if (f.isDirectory) throw IllegalArgumentException("do not support directory")
         if (read && !f.exists() && !f.createNewFile()) {
             throw IllegalStateException("cannot create new file for reading")
         } else if (!read && f.exists() && !f.delete()) {
             throw IllegalStateException("cannot delete file before writing")
         }
-        getEncryptedFileBuilder(f).build()
+        getEncryptedFileBuilder(f, isPrivate).build()
     }
 
-    private fun getEncryptedFileBuilder(f: File) = EncryptedFile.Builder(
+    private fun getEncryptedFileBuilder(f: File, isPrivate: Boolean) = EncryptedFile.Builder(
         f,
         context,
-        getMasterKey(),
+        getMasterKey(isPrivate),
         EncryptedFile.FileEncryptionScheme.AES256_GCM_HKDF_4KB
     )
 
-    private fun getMasterKey(): String {
+    private fun getMasterKey(isPrivate: Boolean): String {
         keyStore.load(null)
-
         val keyAlias = masterKeyAlias ?: UUID.randomUUID().toString().also { masterKeyAlias = it }
-
-        val parameterSpec = KeyGenParameterSpec.Builder(keyAlias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT).apply {
+        val authenticationTimeoutInSeconds = 30
+        val parameterSpecBuilder = KeyGenParameterSpec.Builder(keyAlias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT).apply {
             setKeySize(256)
             setDigests(KeyProperties.DIGEST_SHA512)
-            setUserAuthenticationRequired(false)
+            setUserAuthenticationRequired(isPrivate)
             setRandomizedEncryptionRequired(true)
             setBlockModes(KeyProperties.BLOCK_MODE_GCM)
             setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-        }.build()
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            parameterSpecBuilder.setUserAuthenticationParameters(authenticationTimeoutInSeconds, KeyProperties.AUTH_DEVICE_CREDENTIAL or KeyProperties.AUTH_BIOMETRIC_STRONG)
+        }
+        else {
+            //This method was deprecated in API level 30.
+            parameterSpecBuilder.setUserAuthenticationValidityDurationSeconds(authenticationTimeoutInSeconds)
+        }
+
+        val  parameterSpec = parameterSpecBuilder.build()
 
         return MasterKeys.getOrCreate(parameterSpec)
     }
