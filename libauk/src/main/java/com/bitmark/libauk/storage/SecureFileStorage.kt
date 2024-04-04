@@ -24,6 +24,7 @@ internal interface SecureFileStorage {
     fun deleteOnFilesDir(name: String): Boolean
 }
 
+@Suppress("DEPRECATION")
 internal class SecureFileStorageImpl constructor(private val context: Context, private val alias: UUID) : SecureFileStorage {
 
     private val keyStore: KeyStore = KeyStore.getInstance(ANDROID_KEY_STORE).apply { load(null) }

@@ -1,6 +1,5 @@
 package com.bitmark.libauk.storage
 
-import android.security.keystore.KeyInfo
 import androidx.lifecycle.Transformations.map
 import at.favre.lib.hkdf.HKDF
 import com.bitmark.apiservice.configuration.GlobalConfiguration
@@ -12,7 +11,7 @@ import com.bitmark.cryptography.crypto.encoder.Base58
 import com.bitmark.cryptography.crypto.key.PublicKey
 import com.bitmark.libauk.Const.ACCOUNT_DERIVATION_PATH
 import com.bitmark.libauk.Const.ENCRYPT_KEY_DERIVATION_PATH
-//import com.bitmark.libauk.model.KeyInfo
+import com.bitmark.libauk.model.KeyInfo
 import com.bitmark.libauk.model.Seed
 import com.bitmark.libauk.model.SeedPublicData
 import com.bitmark.libauk.storage.WalletStorageImpl.Companion.SEED_PUBLIC_DATA_FILE_NAME
@@ -83,7 +82,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
 
     companion object {
         const val SEED_FILE_NAME = "libauk_seed.dat"
-//        const val ETH_KEY_INFO_FILE_NAME = "libauk_eth_key_info.dat"
+        const val ETH_KEY_INFO_FILE_NAME = "libauk_eth_key_info.dat"
         const val SEED_PUBLIC_DATA_FILE_NAME = "libauk_seed_public_data.dat"
         const val PRE_GENERATE_ADDRESS_LIMIT = 100
     }
@@ -154,7 +153,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
     }
 
     private fun generateSeedPublicData(seed: Seed) : Single<SeedPublicData> = secureFileStorage.rxSingle { storage ->
-        val mnemonic = MnemonicUtils.generateMnemonic(seed.data)
+//        val mnemonic = MnemonicUtils.generateMnemonic(seed.data)
 
         /* ethAddress */
         val ethAddress = generateETHAddress(seed)
@@ -178,6 +177,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
             accountDID,
             preGenerateEthAddresses,
             emptyMap(),
+            encryptionPrivateKey
         )
     }
 
@@ -211,7 +211,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
     override fun getAccountDID(): Single<String> = getSeedPublicData()
         .map { seedPublicData ->
             // Process seedPublicData and extract the accountDID
-            seedPublicData.did ?: ""
+            seedPublicData.did
         }
         .onErrorResumeNext { error ->
             Single.error(Throwable("Failed to get accountDID: ${error.message}"))
@@ -273,12 +273,13 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
                 } else {
                     address
                 }
-            }.onErrorResumeNext({ error ->
+            }.onErrorResumeNext { _ ->
                 secureFileStorage.rxSingle { storage ->
                     val credential = createETHCredentialWithIndex(storage, index)
                     credential.address
                 }
-            })
+            }
+
     override fun ethSignMessage(
         message: ByteArray,
         needToHash: Boolean
@@ -339,8 +340,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         val seed = MnemonicUtils.generateSeed(mnemonic, "")
         val masterKeypair = Bip32ECKeyPair.generateKeyPair(seed)
         val bip44Keypair = Bip32ECKeyPair.deriveKeyPair(masterKeypair, ENCRYPT_KEY_DERIVATION_PATH)
-        val bytes = Numeric.toBytesPadded(bip44Keypair.privateKey, 32)
-        return bytes
+        return Numeric.toBytesPadded(bip44Keypair.privateKey, 32)
     }
     private fun getEncryptKey(usingLegacy: Boolean = false): Single<ByteArray> {
         return secureFileStorage.rxSingle { storage ->

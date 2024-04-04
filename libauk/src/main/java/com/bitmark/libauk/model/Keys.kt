@@ -16,16 +16,16 @@ data class KeyIdentity(
     val passphrase: String
 )
 
-//@JsonSerialize
-//data class KeyInfo(
-//    @Expose
-//    @SerializedName("ethAddress")
-//    val ethAddress: String,
-//
-//    @Expose
-//    @SerializedName("creationDate")
-//    val creationDate: Date
-//)
+@JsonSerialize
+data class KeyInfo(
+    @Expose
+    @SerializedName("ethAddress")
+    val ethAddress: String,
+
+    @Expose
+    @SerializedName("creationDate")
+    val creationDate: Date
+)
 data class SeedPublicData(
     val ethAddress: String,
     val creationDate: Date,
@@ -33,12 +33,13 @@ data class SeedPublicData(
     val did: String,
     val preGenerateEthAddress: Map<Int, String>,
     val preGenerateTezosAddress: Map<Int, String>,
+    val encryptionPrivateKey: ByteArray,
 //    val tezosPublicKeys: Map<Int, String>,
 
 //    var _encryptionPrivateKeyBase64: String? = null,
 //    var _accountDIDPrivateKeyBase64: String? = null
 ) {
-//    var encryptionPrivateKey: Secp256k1.Signing.PrivateKey?
+    //    var encryptionPrivateKey: Secp256k1.Signing.PrivateKey?
 //        get() {
 //            return try {
 //                _encryptionPrivateKeyBase64?.let { base64String ->
@@ -71,4 +72,31 @@ data class SeedPublicData(
 //                android.util.Base64.encodeToString(it.rawRepresentation, android.util.Base64.DEFAULT)
 //            }
 //        }
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as SeedPublicData
+
+        if (ethAddress != other.ethAddress) return false
+        if (creationDate != other.creationDate) return false
+        if (name != other.name) return false
+        if (did != other.did) return false
+        if (preGenerateEthAddress != other.preGenerateEthAddress) return false
+        if (preGenerateTezosAddress != other.preGenerateTezosAddress) return false
+        if (!encryptionPrivateKey.contentEquals(other.encryptionPrivateKey)) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = ethAddress.hashCode()
+        result = 31 * result + creationDate.hashCode()
+        result = 31 * result + (name?.hashCode() ?: 0)
+        result = 31 * result + did.hashCode()
+        result = 31 * result + preGenerateEthAddress.hashCode()
+        result = 31 * result + preGenerateTezosAddress.hashCode()
+        result = 31 * result + encryptionPrivateKey.contentHashCode()
+        return result
+    }
 }
