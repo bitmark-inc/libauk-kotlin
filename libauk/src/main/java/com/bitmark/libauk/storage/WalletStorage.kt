@@ -153,7 +153,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         )
     }
 
-    internal  fun generateSeedPublicData(seed: Seed) : Single<SeedPublicData> = secureFileStorage.rxSingle { storage ->
+    private fun generateSeedPublicData(seed: Seed) : Single<SeedPublicData> = secureFileStorage.rxSingle { storage ->
         val mnemonic = MnemonicUtils.generateMnemonic(seed.data)
 
         /* ethAddress */
