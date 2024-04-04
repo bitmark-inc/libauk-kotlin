@@ -152,7 +152,8 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         )
     }
 
-    private fun generateSeedPublicData(seed: Seed) : Single<SeedPublicData> = secureFileStorage.rxSingle { storage ->
+    private fun generateSeedPublicData(seed: Seed) : SeedPublicData {
+        /* mnemonic */
 //        val mnemonic = MnemonicUtils.generateMnemonic(seed.data)
 
         /* ethAddress */
@@ -169,11 +170,11 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
 
         /* encrytion private key */
         val encryptionPrivateKey = generateEncryptKey(seed)
-        
+
         /* tezos public keys */
         val preGenerateTezosPublicKeys = generateTezosPublicKeys(seed, 0, PRE_GENERATE_ADDRESS_LIMIT)
 
-        SeedPublicData(
+        return SeedPublicData(
             ethAddress,
             Date(),
             seedName,
