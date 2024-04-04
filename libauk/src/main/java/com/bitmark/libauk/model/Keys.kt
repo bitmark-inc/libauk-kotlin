@@ -16,16 +16,16 @@ data class KeyIdentity(
     val passphrase: String
 )
 
-@JsonSerialize
-data class KeyInfo(
-    @Expose
-    @SerializedName("ethAddress")
-    val ethAddress: String,
-
-    @Expose
-    @SerializedName("creationDate")
-    val creationDate: Date
-)
+//@JsonSerialize
+//data class KeyInfo(
+//    @Expose
+//    @SerializedName("ethAddress")
+//    val ethAddress: String,
+//
+//    @Expose
+//    @SerializedName("creationDate")
+//    val creationDate: Date
+//)
 data class SeedPublicData(
     val ethAddress: String,
     val creationDate: Date,

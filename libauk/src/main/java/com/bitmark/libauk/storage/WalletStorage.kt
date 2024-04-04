@@ -1,5 +1,6 @@
 package com.bitmark.libauk.storage
 
+import android.security.keystore.KeyInfo
 import androidx.lifecycle.Transformations.map
 import at.favre.lib.hkdf.HKDF
 import com.bitmark.apiservice.configuration.GlobalConfiguration
@@ -11,10 +12,10 @@ import com.bitmark.cryptography.crypto.encoder.Base58
 import com.bitmark.cryptography.crypto.key.PublicKey
 import com.bitmark.libauk.Const.ACCOUNT_DERIVATION_PATH
 import com.bitmark.libauk.Const.ENCRYPT_KEY_DERIVATION_PATH
-import com.bitmark.libauk.model.KeyInfo
+//import com.bitmark.libauk.model.KeyInfo
 import com.bitmark.libauk.model.Seed
 import com.bitmark.libauk.model.SeedPublicData
-import com.bitmark.libauk.storage.WalletStorageImpl.Companion.ETH_KEY_INFO_FILE_NAME
+import com.bitmark.libauk.storage.WalletStorageImpl.Companion.SEED_PUBLIC_DATA_FILE_NAME
 import com.bitmark.libauk.storage.WalletStorageImpl.Companion.SEED_FILE_NAME
 import com.bitmark.libauk.util.fromJson
 import com.bitmark.libauk.util.newGsonInstance
@@ -82,14 +83,14 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
 
     companion object {
         const val SEED_FILE_NAME = "libauk_seed.dat"
-        const val ETH_KEY_INFO_FILE_NAME = "libauk_eth_key_info.dat"
-        const val SEED_PUBLIC_DATA = "libauk_seed_public_data.dat"
+//        const val ETH_KEY_INFO_FILE_NAME = "libauk_eth_key_info.dat"
+        const val SEED_PUBLIC_DATA_FILE_NAME = "libauk_seed_public_data.dat"
         const val PRE_GENERATE_ADDRESS_LIMIT = 100
     }
 
     override fun createKey(name: String, isPrivate: Boolean): Completable = secureFileStorage.rxSingle { storage ->
         storage.isExistingOnFilesDir(SEED_FILE_NAME) && storage.isExistingOnFilesDir(
-            ETH_KEY_INFO_FILE_NAME
+            SEED_PUBLIC_DATA_FILE_NAME
         )
     }
         .map { isExisting ->
@@ -97,16 +98,13 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
                 val mnemonic = generateMnemonic()
                 val entropy = MnemonicUtils.generateEntropy(mnemonic)
                 val seed = Seed(entropy, Date(), name)
-
-                val credential =
-                    Bip44WalletUtils.loadBip44Credentials("", mnemonic)
-                val keyInfo = KeyInfo(credential.address, Date())
-                Pair(seed, keyInfo)
+                val seedPublicData = generateSeedPublicData(seed)
+                Pair(seed, seedPublicData)
             } else {
                 throw Throwable("Wallet is already created!")
             }
         }
-        .flatMapCompletable { (seed, keyInfo) ->
+        .flatMapCompletable { (seed, seedPublicData) ->
             secureFileStorage.rxCompletable { storage ->
                 storage.writeOnFilesDir(
                     SEED_FILE_NAME,
@@ -114,34 +112,27 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
                     isPrivate
                 )
                 storage.writeOnFilesDir(
-                    ETH_KEY_INFO_FILE_NAME,
-                    newGsonInstance().toJson(keyInfo).toByteArray(),
+                    SEED_PUBLIC_DATA_FILE_NAME,
+                    newGsonInstance().toJson(seedPublicData).toByteArray(),
                     false
                 )
             }
         }
 
     override fun importKey(words: List<String>, name: String, creationDate: Date?, isPrivate: Boolean): Completable =
-        secureFileStorage.rxSingle { storage ->
-            storage.isExistingOnFilesDir(SEED_FILE_NAME) && storage.isExistingOnFilesDir(
-                ETH_KEY_INFO_FILE_NAME
-            )
-        }
+        isWalletCreated()
             .map { isExisting ->
                 if (!isExisting) {
                     val mnemonic = words.joinToString(separator = " ")
                     val entropy = MnemonicUtils.generateEntropy(mnemonic)
                     val seed = Seed(entropy, Date(), name)
-
-                    val credential =
-                        Bip44WalletUtils.loadBip44Credentials("", mnemonic)
-                    val keyInfo = KeyInfo(credential.address, Date())
-                    Pair(seed, keyInfo)
+                    val seedPublicData = generateSeedPublicData(seed)
+                    Pair(seed, seedPublicData)
                 } else {
                     throw Throwable("Wallet is already created!")
                 }
             }
-            .flatMapCompletable { (seed, keyInfo) ->
+            .flatMapCompletable { (seed, seedPublicData) ->
                 secureFileStorage.rxCompletable { storage ->
                     storage.writeOnFilesDir(
                         SEED_FILE_NAME,
@@ -149,8 +140,8 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
                         isPrivate
                     )
                     storage.writeOnFilesDir(
-                        ETH_KEY_INFO_FILE_NAME,
-                        newGsonInstance().toJson(keyInfo).toByteArray(),
+                        SEED_PUBLIC_DATA_FILE_NAME,
+                        newGsonInstance().toJson(seedPublicData).toByteArray(),
                         false
                     )
                 }
@@ -158,7 +149,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
 
     override fun isWalletCreated(): Single<Boolean> = secureFileStorage.rxSingle { storage ->
         storage.isExistingOnFilesDir(SEED_FILE_NAME) && storage.isExistingOnFilesDir(
-            ETH_KEY_INFO_FILE_NAME
+            SEED_PUBLIC_DATA_FILE_NAME
         )
     }
 
@@ -190,8 +181,8 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         )
     }
 
-    internal fun getSeedPublicData(): Single<SeedPublicData> = secureFileStorage.rxSingle { storage ->
-        val json = storage.readOnFilesDir(SEED_PUBLIC_DATA, false)
+    private fun getSeedPublicData(): Single<SeedPublicData> = secureFileStorage.rxSingle { storage ->
+        val json = storage.readOnFilesDir(SEED_PUBLIC_DATA_FILE_NAME, false)
         val seedPublicData = newGsonInstance().fromJson<SeedPublicData>(String(json))
         seedPublicData
     }
@@ -476,11 +467,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
             PrivateKey(it.secretKey.encoded).sign(bytesToSign, Curve.ED25519)
         }
 
-    override fun removeKeys(): Completable = secureFileStorage.rxSingle { storage ->
-        storage.isExistingOnFilesDir(SEED_FILE_NAME) && storage.isExistingOnFilesDir(
-            ETH_KEY_INFO_FILE_NAME
-        )
-    }
+    override fun removeKeys(): Completable = isWalletCreated()
         .map { isExisting ->
             if (isExisting) {
                 true
@@ -491,7 +478,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         .flatMapCompletable {
             secureFileStorage.rxCompletable { storage ->
                 storage.deleteOnFilesDir(SEED_FILE_NAME)
-                storage.deleteOnFilesDir(ETH_KEY_INFO_FILE_NAME)
+                storage.deleteOnFilesDir(SEED_PUBLIC_DATA_FILE_NAME)
             }
         }
 
