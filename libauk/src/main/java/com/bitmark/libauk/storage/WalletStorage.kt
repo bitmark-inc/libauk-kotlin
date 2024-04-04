@@ -169,6 +169,9 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
 
         /* encrytion private key */
         val encryptionPrivateKey = generateEncryptKey(seed)
+        
+        /* tezos public keys */
+        val preGenerateTezosPublicKeys = generateTezosPublicKeys(seed, 0, PRE_GENERATE_ADDRESS_LIMIT)
 
         SeedPublicData(
             ethAddress,
