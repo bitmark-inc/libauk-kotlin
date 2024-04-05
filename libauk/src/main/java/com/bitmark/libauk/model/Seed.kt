@@ -15,5 +15,9 @@ class Seed(
 
     @Expose
     @SerializedName("name")
-    var name: String
+    var name: String,
+
+    @Expose
+    @SerializedName("passphrase")
+    val passphrase: String?
 )
