@@ -5,7 +5,7 @@ import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import androidx.security.crypto.EncryptedFile
-import androidx.security.crypto.MasterKeys
+import androidx.security.crypto.MasterKey
 import io.reactivex.Completable
 import io.reactivex.Single
 import java.io.ByteArrayOutputStream
@@ -93,13 +93,13 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
     }
 
     private fun getEncryptedFileBuilder(f: File, isPrivate: Boolean) = EncryptedFile.Builder(
-        f,
         context,
+        f,
         getMasterKey(isPrivate),
         EncryptedFile.FileEncryptionScheme.AES256_GCM_HKDF_4KB
     )
 
-    private fun getMasterKey(isPrivate: Boolean): String {
+    private fun getMasterKey(isPrivate: Boolean): MasterKey {
         keyStore.load(null)
         val keyAlias = masterKeyAlias ?: UUID.randomUUID().toString().also { masterKeyAlias = it }
         val authenticationTimeoutInSeconds = 30
@@ -123,7 +123,9 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
 
         val  parameterSpec = parameterSpecBuilder.build()
 
-        return MasterKeys.getOrCreate(parameterSpec)
+        return MasterKey.Builder(context, keyAlias)
+            .setKeyGenParameterSpec(parameterSpec)
+            .build()
     }
 
     companion object {
