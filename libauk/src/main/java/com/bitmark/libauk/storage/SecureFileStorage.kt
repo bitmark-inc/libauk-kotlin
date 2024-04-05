@@ -102,9 +102,10 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
     private fun getMasterKey(isPrivate: Boolean): MasterKey {
         keyStore.load(null)
         val keyAlias = masterKeyAlias ?: UUID.randomUUID().toString().also { masterKeyAlias = it }
-        val authenticationTimeoutInSeconds = 30
+        val authenticationTimeoutInSeconds = -1
         val parameterSpecBuilder = KeyGenParameterSpec.Builder(keyAlias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT).apply {
             setKeySize(256)
+                .
             setDigests(KeyProperties.DIGEST_SHA512)
             setUserAuthenticationRequired(isPrivate)
             setRandomizedEncryptionRequired(true)
