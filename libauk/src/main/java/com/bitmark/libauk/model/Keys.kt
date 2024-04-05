@@ -26,6 +26,7 @@ data class KeyInfo(
     @SerializedName("creationDate")
     val creationDate: Date
 )
+@JsonSerialize
 data class SeedPublicData(
     val ethAddress: String,
     val creationDate: Date,
