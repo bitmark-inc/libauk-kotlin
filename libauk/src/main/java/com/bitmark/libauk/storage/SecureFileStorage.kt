@@ -119,7 +119,7 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
             //This method was deprecated in API level 30.
             parameterSpecBuilder.setUserAuthenticationValidityDurationSeconds(authenticationTimeoutInSeconds)
         }
-        
+
 
         val  parameterSpec = parameterSpecBuilder.build()
 
