@@ -28,12 +28,32 @@ data class KeyInfo(
 )
 @JsonSerialize
 data class SeedPublicData(
+    @Expose
+    @SerializedName("ethAddress")
     val ethAddress: String,
+
+    @Expose
+    @SerializedName("creationDate")
     val creationDate: Date,
+
+    @Expose
+    @SerializedName("name")
     val name: String?,
+
+    @Expose
+    @SerializedName("did")
     val did: String,
+
+    @Expose
+    @SerializedName("preGenerateEthAddress")
     val preGenerateEthAddress: Map<Int, String>,
+
+    @Expose
+    @SerializedName("preGenerateTezosAddress")
     val preGenerateTezosAddress: Map<Int, String>,
+
+    @Expose
+    @SerializedName("encryptionPrivateKey")
     val encryptionPrivateKey: ByteArray,
 //    val tezosPublicKeys: Map<Int, String>,
 
