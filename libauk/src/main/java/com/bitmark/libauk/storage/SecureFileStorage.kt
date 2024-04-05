@@ -108,6 +108,7 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
             setDigests(KeyProperties.DIGEST_SHA512)
             setUserAuthenticationRequired(isPrivate)
             setRandomizedEncryptionRequired(true)
+            setInvalidatedByBiometricEnrollment(true)
             setBlockModes(KeyProperties.BLOCK_MODE_GCM)
             setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
         }
