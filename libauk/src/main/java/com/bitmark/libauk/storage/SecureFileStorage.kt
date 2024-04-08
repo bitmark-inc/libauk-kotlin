@@ -50,6 +50,7 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
     }
 
     private fun read(path: String, isPrivate: Boolean): ByteArray {
+
         val file = getEncryptedFile(path, true, isPrivate)
         if (File(path).length() == 0L) return byteArrayOf()
         val inputStream = file.openFileInput()
@@ -114,7 +115,7 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            parameterSpecBuilder.setUserAuthenticationParameters(authenticationTimeoutInSeconds, KeyProperties.AUTH_DEVICE_CREDENTIAL or KeyProperties.AUTH_BIOMETRIC_STRONG)
+            parameterSpecBuilder.setUserAuthenticationParameters(authenticationTimeoutInSeconds, KeyProperties.AUTH_BIOMETRIC_STRONG)
         }
         else {
             //This method was deprecated in API level 30.
@@ -130,8 +131,8 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
     }
 
     companion object {
-        private const val ANDROID_KEY_STORE = "AndroidKeyStore"
-        private const val KEY_MASTER_KEY_ALIAS = "masterKeyAlias"
+        private const val ANDROID_KEY_STORE = "AndroidKeyStoreV1"
+        private const val KEY_MASTER_KEY_ALIAS = "masterKeyAliasV1"
     }
 }
 
