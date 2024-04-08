@@ -64,9 +64,11 @@ interface WalletStorage {
     fun decryptFile(input: File, output: File): Completable
     fun exportMnemonicWords(): Single<String>
     fun getTezosPublicKey(): Single<String>
+    fun getEthPublicKey(): Single<String>
     fun tezosSignMessage(message: ByteArray): Single<ByteArray>
     fun tezosTransaction(forgedHex: String): Single<ByteArray>
     fun getTezosPublicKeyWithIndex(index: Int): Single<String>
+    fun getEthPublicKeyWithIndex(index: Int): Single<String>
     fun tezosSignMessageWithIndex(message: ByteArray, index: Int): Single<ByteArray>
     fun tezosTransactionWithIndex(forgedHex: String, index: Int): Single<ByteArray>
     fun removeKeys(): Completable
@@ -347,9 +349,20 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         it.publicKey.base58Representation
     }
 
+    override fun getEthPublicKey(): Single<String> = secureFileStorage.rxSingle { storage ->
+        val credential = createETHCredential(storage)
+        credential.ecKeyPair.publicKey.toString(16)
+    }
+
     override fun getTezosPublicKeyWithIndex(index: Int): Single<String> =
         getTezosWalletWithIndex(index).map {
             it.publicKey.base58Representation
+        }
+
+    override  fun getEthPublicKeyWithIndex(index: Int): Single<String> =
+        secureFileStorage.rxSingle { storage ->
+            val credential = createETHCredentialWithIndex(storage, index)
+            credential.ecKeyPair.publicKey.toString(16)
         }
 
     override fun tezosSignMessage(message: ByteArray): Single<ByteArray> = getTezosWallet().map {
@@ -444,6 +457,17 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         val derBytes = listOf(0x30, 4 + rp.size + sp.size, 0x02, rp.size).map { it.toByte() }
             .toByteArray() + rp + listOf(0x02, sp.size).map { it.toByte() }.toByteArray() + sp
         return derBytes.toHexString()
+    }
+
+    private fun createETHCredential(
+        storage: SecureFileStorage
+    ): Credentials {
+        val json = storage.readOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)
+        val seed = newGsonInstance().fromJson<Seed>(String(json))
+        val mnemonic = MnemonicUtils.generateMnemonic(seed.data)
+        val credential =
+            Bip44WalletUtils.loadBip44Credentials("", mnemonic)
+        return credential
     }
 
     private fun createETHCredentialWithIndex(storage: SecureFileStorage, index: Int): Credentials {
