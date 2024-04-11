@@ -1,5 +1,6 @@
 package com.bitmark.libauk.storage
 
+import com.bitmark.libauk.model.KeyInfo
 import com.bitmark.libauk.model.Seed
 import com.bitmark.libauk.util.newGsonInstance
 import com.nhaarman.mockitokotlin2.*
@@ -172,19 +173,18 @@ class WalletStorageUnitTest {
 
     @Test
     fun getETHAddress() {
-        val words = "victory fatigue diet funny senior coral motion canal leg elite hen model"
-        val entropy = MnemonicUtils.generateEntropy(words)
-        val seed = Seed(entropy, Date(), "Test", "")
-        val seedString = newGsonInstance().toJson(seed)
+        val ethAddress = "0x79a633e7d70e1676b5884a027a485aae4bd46136"
+        val keyInfo = KeyInfo(ethAddress, Date())
+        val keyInfoString = newGsonInstance().toJson(keyInfo)
 
-        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
-            seedString.toByteArray()
+        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.ETH_KEY_INFO_FILE_NAME)).willReturn(
+            keyInfoString.toByteArray()
         )
 
         walletStorage.getETHAddress()
             .test()
             .assertComplete()
-            .assertResult("0x647ae57a3f1b6acaa02a4aa58ae6ccf8d3dba766")
+            .assertResult(ethAddress)
     }
 
     @Test
@@ -244,7 +244,24 @@ class WalletStorageUnitTest {
     }
 
     @Test
-    fun exportSeed() {
+    fun exportMnemonicPassphrase() {
+        val words = "victory fatigue diet funny senior coral motion canal leg elite hen model"
+        val passphrase = "passphrase1"
+        val entropy = MnemonicUtils.generateEntropy(words)
+        val seed = Seed(entropy, Date(), "Test", passphrase)
+        val seedString = newGsonInstance().toJson(seed)
+
+        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
+            seedString.toByteArray()
+        )
+
+        walletStorage.exportMnemonicPassphrase()
+            .test()
+            .assertResult(passphrase)
+    }
+
+    @Test
+    fun exportMnemonicWords() {
         val words = "victory fatigue diet funny senior coral motion canal leg elite hen model"
         val entropy = MnemonicUtils.generateEntropy(words)
         val seed = Seed(entropy, Date(), "Test", "")

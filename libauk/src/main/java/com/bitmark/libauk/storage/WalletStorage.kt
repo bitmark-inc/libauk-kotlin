@@ -69,6 +69,7 @@ interface WalletStorage {
 
     fun encryptFile(input: File, output: File): Completable
     fun decryptFile(input: File, output: File, usingLegacy: Boolean): Completable
+    fun exportMnemonicPassphrase(): Single<String>
     fun exportMnemonicWords(): Single<String>
     fun getTezosPublicKey(): Single<String>
     fun tezosSignMessage(message: ByteArray): Single<ByteArray>
@@ -209,12 +210,9 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         }
 
     override fun getETHAddress(): Single<String> = secureFileStorage.rxSingle { storage ->
-        val json = storage.readOnFilesDir(SEED_FILE_NAME)
-        val seed = newGsonInstance().fromJson<Seed>(String(json))
-        val mnemonic = MnemonicUtils.generateMnemonic(seed.data)
-        val credential =
-            Bip44WalletUtils.loadBip44Credentials(seed.passphrase ?: "", mnemonic)
-        credential.address
+        val json = storage.readOnFilesDir(ETH_KEY_INFO_FILE_NAME)
+        val keyInfo = newGsonInstance().fromJson<KeyInfo>(String(json))
+        keyInfo.ethAddress
     }
 
     override fun getETHAddressWithIndex(index: Int): Single<String> =
@@ -331,6 +329,12 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
             output.writeBytes(decrypted)
             Completable.complete()
         }
+    }
+
+    override fun exportMnemonicPassphrase(): Single<String> = secureFileStorage.rxSingle { storage ->
+        val json = storage.readOnFilesDir(SEED_FILE_NAME)
+        val seed = newGsonInstance().fromJson<Seed>(String(json))
+        seed.passphrase ?: ""
     }
 
     override fun exportMnemonicWords(): Single<String> = secureFileStorage.rxSingle { storage ->
