@@ -15,7 +15,6 @@ import java.util.UUID
 import javax.crypto.KeyGenerator
 
 internal interface SecureFileStorage {
-
     fun writeOnFilesDir(name: String, data: ByteArray, isPrivate: Boolean)
 
     fun readOnFilesDir(name: String, isPrivate: Boolean): ByteArray
