@@ -133,8 +133,8 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
     }
 
     companion object {
-        private const val ANDROID_KEY_STORE = "AndroidKeyStoreV1"
-        private const val KEY_MASTER_KEY_ALIAS = "masterKeyAliasV1"
+        private const val ANDROID_KEY_STORE = "AndroidKeyStore"
+        private const val KEY_MASTER_KEY_ALIAS = "masterKeyAlias"
     }
 }
 
