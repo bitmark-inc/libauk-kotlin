@@ -12,6 +12,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.security.KeyStore
 import java.util.UUID
+import javax.crypto.KeyGenerator
 
 internal interface SecureFileStorage {
 
@@ -127,6 +128,7 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
 
         return MasterKey.Builder(context, keyAlias)
             .setKeyGenParameterSpec(parameterSpec)
+            .setUserAuthenticationRequired(isPrivate, authenticationTimeoutInSeconds)
             .build()
     }
 
