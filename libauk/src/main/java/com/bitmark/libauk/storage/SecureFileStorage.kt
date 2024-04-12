@@ -15,6 +15,7 @@ import java.util.UUID
 import javax.crypto.KeyGenerator
 
 internal interface SecureFileStorage {
+
     fun writeOnFilesDir(name: String, data: ByteArray, isPrivate: Boolean)
 
     fun readOnFilesDir(name: String, isPrivate: Boolean): ByteArray
@@ -107,20 +108,20 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
         val parameterSpecBuilder = KeyGenParameterSpec.Builder(keyAlias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT).apply {
             setKeySize(256)
             setDigests(KeyProperties.DIGEST_SHA512)
-            setUserAuthenticationRequired(isPrivate)
+//            setUserAuthenticationRequired(isPrivate)
             setRandomizedEncryptionRequired(true)
             setInvalidatedByBiometricEnrollment(true)
             setBlockModes(KeyProperties.BLOCK_MODE_GCM)
             setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            parameterSpecBuilder.setUserAuthenticationParameters(authenticationTimeoutInSeconds, KeyProperties.AUTH_BIOMETRIC_STRONG)
-        }
-        else {
-            //This method was deprecated in API level 30.
-            parameterSpecBuilder.setUserAuthenticationValidityDurationSeconds(authenticationTimeoutInSeconds)
-        }
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+//            parameterSpecBuilder.setUserAuthenticationParameters(authenticationTimeoutInSeconds, KeyProperties.AUTH_BIOMETRIC_STRONG)
+//        }
+//        else {
+//            //This method was deprecated in API level 30.
+//            parameterSpecBuilder.setUserAuthenticationValidityDurationSeconds(authenticationTimeoutInSeconds)
+//        }
 
 
         val  parameterSpec = parameterSpecBuilder.build()
