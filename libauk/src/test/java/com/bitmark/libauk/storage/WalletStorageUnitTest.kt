@@ -31,7 +31,7 @@ class WalletStorageUnitTest {
         )
         doNothing().`when`(secureFileStorage).writeOnFilesDir(any(), any())
 
-        walletStorage.createKey(name = "Hello", password = "").test()
+        walletStorage.createKey(name = "Hello", passphrase = "").test()
             .assertComplete()
     }
 
@@ -44,7 +44,7 @@ class WalletStorageUnitTest {
             true
         )
 
-        walletStorage.createKey(name = "Hello", password = "")
+        walletStorage.createKey(name = "Hello", passphrase = "")
             .test()
             .assertError {
                 it.message == "Wallet is already created!"
@@ -78,7 +78,7 @@ class WalletStorageUnitTest {
 
         walletStorage.importKey(
             words = words,
-            password = "",
+            passphrase = "",
             name = "Hello",
             creationDate = Date()
         )
@@ -112,7 +112,7 @@ class WalletStorageUnitTest {
 
         walletStorage.importKey(
             words = words,
-            password = "",
+            passphrase = "",
             name = "Hello",
             creationDate = Date()
         )

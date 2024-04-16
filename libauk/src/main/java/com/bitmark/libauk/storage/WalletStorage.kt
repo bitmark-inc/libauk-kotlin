@@ -38,10 +38,10 @@ import javax.crypto.spec.SecretKeySpec
 import kotlin.Pair
 
 interface WalletStorage {
-    fun createKey(password: String?, name: String): Completable
+    fun createKey(passphrase: String? = "", name: String): Completable
     fun importKey(
         words: List<String>,
-        password: String?,
+        passphrase: String? = "",
         name: String,
         creationDate: Date?
     ): Completable
@@ -87,7 +87,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         const val ETH_KEY_INFO_FILE_NAME = "libauk_eth_key_info.dat"
     }
 
-    override fun createKey(password: String?, name: String): Completable =
+    override fun createKey(passphrase: String?, name: String): Completable =
         secureFileStorage.rxSingle { storage ->
             storage.isExistingOnFilesDir(SEED_FILE_NAME) && storage.isExistingOnFilesDir(
                 ETH_KEY_INFO_FILE_NAME
@@ -97,10 +97,10 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
                 if (!isExisting) {
                     val mnemonic = generateMnemonic()
                     val entropy = MnemonicUtils.generateEntropy(mnemonic)
-                    val seed = Seed(entropy, Date(), name, password ?: "")
+                    val seed = Seed(entropy, Date(), name, passphrase ?: "")
 
                     val credential =
-                        Bip44WalletUtils.loadBip44Credentials(password ?: "", mnemonic)
+                        Bip44WalletUtils.loadBip44Credentials(passphrase ?: "", mnemonic)
 
                     val keyInfo = KeyInfo(credential.address, Date())
                     Pair(seed, keyInfo)
@@ -123,7 +123,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
 
     override fun importKey(
         words: List<String>,
-        password: String?,
+        passphrase: String?,
         name: String,
         creationDate: Date?
     ): Completable =
@@ -136,10 +136,10 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
                 if (!isExisting) {
                     val mnemonic = words.joinToString(separator = " ")
                     val entropy = MnemonicUtils.generateEntropy(mnemonic)
-                    val seed = Seed(entropy, Date(), name, password ?: "")
+                    val seed = Seed(entropy, Date(), name, passphrase ?: "")
 
                     val credential =
-                        Bip44WalletUtils.loadBip44Credentials(password ?: "", mnemonic)
+                        Bip44WalletUtils.loadBip44Credentials(passphrase ?: "", mnemonic)
                     val keyInfo = KeyInfo(credential.address, Date())
                     Pair(seed, keyInfo)
                 } else {
