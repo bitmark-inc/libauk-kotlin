@@ -84,7 +84,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         const val SEED_FILE_NAME = "libauk_seed.dat"
         const val ETH_KEY_INFO_FILE_NAME = "libauk_eth_key_info.dat"
         const val SEED_PUBLIC_DATA_FILE_NAME = "libauk_seed_public_data.dat"
-        const val PRE_GENERATE_ADDRESS_LIMIT = 100
+        const val PRE_GENERATE_ADDRESS_LIMIT = 3
     }
 
     override fun createKey(name: String, isPrivate: Boolean): Completable = secureFileStorage.rxSingle { storage ->

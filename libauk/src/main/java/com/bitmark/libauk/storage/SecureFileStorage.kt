@@ -4,6 +4,11 @@ import android.content.Context
 import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
+import androidx.annotation.RequiresApi
+import androidx.appcompat.app.AppCompatActivity
+import androidx.biometric.BiometricPrompt
+import androidx.biometric.BiometricPrompt.PromptInfo
+import androidx.core.content.ContextCompat
 import androidx.security.crypto.EncryptedFile
 import androidx.security.crypto.MasterKey
 import io.reactivex.Completable
@@ -12,6 +17,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.security.KeyStore
 import java.util.UUID
+import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 
 internal interface SecureFileStorage {
@@ -36,6 +42,25 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
         set(value) {
             value?.let { sharedPreferences.edit().putString(KEY_MASTER_KEY_ALIAS, it).apply() }
         }
+
+    private fun withAuthenticate(
+        listener: BiometricPrompt.AuthenticationCallback
+    ) {
+        val executor = ContextCompat.getMainExecutor(context)
+        val biometricPrompt = BiometricPrompt(
+            context as AppCompatActivity,
+            executor,
+            listener)
+
+        val promptInfoBuilder = PromptInfo.Builder()
+            .setTitle("Authenticate")
+            .setSubtitle("Authenticate to access the data")
+            .setNegativeButtonText("Cancel")
+
+        val promptInfo = promptInfoBuilder.build()
+        biometricPrompt.authenticate(promptInfo)
+
+    }
 
     private fun write(path: String, name: String, data: ByteArray, isPrivate: Boolean) {
         val file = getEncryptedFile("$path/$name", false, isPrivate)
@@ -64,8 +89,20 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
         return os.toByteArray()
     }
 
-    override fun readOnFilesDir(name: String, isPrivate: Boolean): ByteArray =
-        read(File(context.filesDir, "$alias-$name").absolutePath, isPrivate)
+    override fun readOnFilesDir(name: String, isPrivate: Boolean): ByteArray {
+        var byteArray = byteArrayOf()
+        val readFunc = { read(File(context.filesDir, "$alias-$name").absolutePath, isPrivate) }
+        if (isPrivate) {
+        withAuthenticate(object : BiometricPrompt.AuthenticationCallback() {
+            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                readFunc().also { byteArray = it }
+            }
+        })}
+        else {
+            byteArray = readFunc()
+        }
+        return byteArray
+    }
 
     private fun isExisting(path: String): Boolean = File(path).exists()
 
@@ -108,20 +145,11 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
         val parameterSpecBuilder = KeyGenParameterSpec.Builder(keyAlias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT).apply {
             setKeySize(256)
             setDigests(KeyProperties.DIGEST_SHA512)
-//            setUserAuthenticationRequired(isPrivate)
             setRandomizedEncryptionRequired(true)
             setInvalidatedByBiometricEnrollment(true)
             setBlockModes(KeyProperties.BLOCK_MODE_GCM)
             setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
         }
-
-//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-//            parameterSpecBuilder.setUserAuthenticationParameters(authenticationTimeoutInSeconds, KeyProperties.AUTH_BIOMETRIC_STRONG)
-//        }
-//        else {
-//            //This method was deprecated in API level 30.
-//            parameterSpecBuilder.setUserAuthenticationValidityDurationSeconds(authenticationTimeoutInSeconds)
-//        }
 
 
         val  parameterSpec = parameterSpecBuilder.build()
