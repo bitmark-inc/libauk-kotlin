@@ -1,10 +1,8 @@
 package com.bitmark.libauk.storage
 
 import android.content.Context
-import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
-import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.biometric.BiometricPrompt
 import androidx.biometric.BiometricPrompt.PromptInfo
@@ -17,8 +15,6 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.security.KeyStore
 import java.util.UUID
-import javax.crypto.Cipher
-import javax.crypto.KeyGenerator
 
 internal interface SecureFileStorage {
 
@@ -91,15 +87,14 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
 
     override fun readOnFilesDir(name: String, isPrivate: Boolean): ByteArray {
         var byteArray = byteArrayOf()
-        val readFunc = { read(File(context.filesDir, "$alias-$name").absolutePath, isPrivate) }
         if (isPrivate) {
         withAuthenticate(object : BiometricPrompt.AuthenticationCallback() {
             override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                readFunc().also { byteArray = it }
+                read(File(context.filesDir, "$alias-$name").absolutePath, isPrivate).also { byteArray = it }
             }
         })}
         else {
-            byteArray = readFunc()
+            read(File(context.filesDir, "$alias-$name").absolutePath, isPrivate).also { byteArray = it }
         }
         return byteArray
     }
