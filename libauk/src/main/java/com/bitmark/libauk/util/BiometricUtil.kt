@@ -36,7 +36,6 @@ class BiometricUtil {
                             }
                         )
                     }
-
                     override fun onAuthenticationFailed() {
                         Single.fromCallable { onAuthenticationFailed() }.subscribe(
                             {
@@ -47,7 +46,6 @@ class BiometricUtil {
                             }
                         )
                     }
-
                     override fun onAuthenticationError(
                         errorCode: Int,
                         errString: CharSequence
