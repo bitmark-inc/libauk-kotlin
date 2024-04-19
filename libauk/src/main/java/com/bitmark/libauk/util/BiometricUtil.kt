@@ -1,18 +1,17 @@
-import android.content.Context
+package com.bitmark.libauk.util
+
 import androidx.annotation.UiThread
 import androidx.annotation.WorkerThread
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
-import io.reactivex.Completable
 import io.reactivex.Single
 import io.reactivex.subjects.PublishSubject
-import org.web3j.abi.datatypes.Bool
 
 class BiometricUtil {
     companion object {
         @UiThread
-        fun <T> withAuthenticate(
+        fun <T : Any> withAuthenticate(
             activity: FragmentActivity,
             @WorkerThread onAuthenticationSucceeded: (BiometricPrompt.AuthenticationResult) -> T,
             @WorkerThread onAuthenticationFailed: () -> T,
@@ -24,41 +23,28 @@ class BiometricUtil {
                 activity,
                 executor,
                 object : BiometricPrompt.AuthenticationCallback() {
-                    override fun onAuthenticationSucceeded(
-                        result: BiometricPrompt.AuthenticationResult
-                    ) {
+                    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                         Single.fromCallable { onAuthenticationSucceeded(result) }.subscribe(
-                            {
-                                subject.onNext(it)
-                            },
-                            {
-                                subject.onError(it)
-                            }
-                        )
+                            { subject.onNext(it) },
+                            { subject.onError(it) }
+                        ).let { }
                     }
+
                     override fun onAuthenticationFailed() {
                         Single.fromCallable { onAuthenticationFailed() }.subscribe(
-                            {
-                                subject.onNext(it)
-                            },
-                            {
-                                subject.onError(it)
-                            }
-                        )
+                            { subject.onNext(it) },
+                            { subject.onError(it) }
+                        ).let {  }
                     }
+
                     override fun onAuthenticationError(
                         errorCode: Int,
                         errString: CharSequence
                     ) {
-                        Single.fromCallable { onAuthenticationError(errorCode, errString) }
-                            .subscribe(
-                                {
-                                    subject.onNext(it)
-                                },
-                                {
-                                    subject.onError(it)
-                                }
-                            )
+                        Single.fromCallable { onAuthenticationError(errorCode, errString) }.subscribe(
+                            { subject.onNext(it) },
+                            { subject.onError(it) }
+                        ).let {  }
                     }
                 }
             )

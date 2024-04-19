@@ -1,10 +1,9 @@
 package com.bitmark.libauk.storage
 
-import BiometricUtil
+import com.bitmark.libauk.util.BiometricUtil
 import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
-import androidx.biometric.BiometricPrompt
 import androidx.fragment.app.FragmentActivity
 import androidx.security.crypto.EncryptedFile
 import androidx.security.crypto.MasterKey
