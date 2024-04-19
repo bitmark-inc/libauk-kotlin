@@ -66,6 +66,7 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
     }
 
     override fun readOnFilesDir(name: String, isPrivate: Boolean): ByteArray {
+
         var byteArray = byteArrayOf()
         if (isPrivate) {
             if (context is FragmentActivity)
@@ -74,7 +75,9 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                     read(File(context.filesDir, "$alias-$name").absolutePath, isPrivate).also { byteArray = it }
                 }
-            })
+            }).map {
+                println("Authenticated sucess =: $it")
+            }
         }
         else {
             read(File(context.filesDir, "$alias-$name").absolutePath, isPrivate).also { byteArray = it }
