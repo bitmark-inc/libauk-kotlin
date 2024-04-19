@@ -112,6 +112,8 @@ internal class SecureFileStorageImpl(
             setKeySize(256)
             setDigests(KeyProperties.DIGEST_SHA512)
             setUserAuthenticationRequired(false)
+            setUnlockedDeviceRequired(true)
+            setIsStrongBoxBacked(true)
             setRandomizedEncryptionRequired(true)
             setBlockModes(KeyProperties.BLOCK_MODE_GCM)
             setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
