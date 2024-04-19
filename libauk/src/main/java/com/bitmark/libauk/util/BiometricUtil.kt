@@ -27,15 +27,25 @@ class BiometricUtil {
                     override fun onAuthenticationSucceeded(
                         result: BiometricPrompt.AuthenticationResult
                     ) {
-                        Single.fromCallable { onAuthenticationSucceeded(result) }.map {
-                            subject.onNext(it)
-                        }
+                        Single.fromCallable { onAuthenticationSucceeded(result) }.subscribe(
+                            {
+                                subject.onNext(it)
+                            },
+                            {
+                                subject.onError(it)
+                            }
+                        )
                     }
 
                     override fun onAuthenticationFailed() {
-                        Single.fromCallable { onAuthenticationFailed() }.map {
-                            subject.onNext(it)
-                        }
+                        Single.fromCallable { onAuthenticationFailed() }.subscribe(
+                            {
+                                subject.onNext(it)
+                            },
+                            {
+                                subject.onError(it)
+                            }
+                        )
                     }
 
                     override fun onAuthenticationError(
@@ -43,9 +53,14 @@ class BiometricUtil {
                         errString: CharSequence
                     ) {
                         Single.fromCallable { onAuthenticationError(errorCode, errString) }
-                            .map {
-                                subject.onNext(it)
-                            }
+                            .subscribe(
+                                {
+                                    subject.onNext(it)
+                                },
+                                {
+                                    subject.onError(it)
+                                }
+                            )
                     }
                 }
             )
