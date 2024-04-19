@@ -1,12 +1,11 @@
 package com.bitmark.libauk.storage
 
+import BiometricUtil
 import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
-import androidx.appcompat.app.AppCompatActivity
 import androidx.biometric.BiometricPrompt
-import androidx.biometric.BiometricPrompt.PromptInfo
-import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
 import androidx.security.crypto.EncryptedFile
 import androidx.security.crypto.MasterKey
 import io.reactivex.Completable
@@ -39,25 +38,6 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
             value?.let { sharedPreferences.edit().putString(KEY_MASTER_KEY_ALIAS, it).apply() }
         }
 
-    private fun withAuthenticate(
-        listener: BiometricPrompt.AuthenticationCallback
-    ) {
-        val executor = ContextCompat.getMainExecutor(context)
-        val biometricPrompt = BiometricPrompt(
-            context as AppCompatActivity,
-            executor,
-            listener)
-
-        val promptInfoBuilder = PromptInfo.Builder()
-            .setTitle("Authenticate")
-            .setSubtitle("Authenticate to access the data")
-            .setNegativeButtonText("Cancel")
-
-        val promptInfo = promptInfoBuilder.build()
-        biometricPrompt.authenticate(promptInfo)
-
-    }
-
     private fun write(path: String, name: String, data: ByteArray, isPrivate: Boolean) {
         val file = getEncryptedFile("$path/$name", false, isPrivate)
         file.openFileOutput().apply {
@@ -88,11 +68,14 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
     override fun readOnFilesDir(name: String, isPrivate: Boolean): ByteArray {
         var byteArray = byteArrayOf()
         if (isPrivate) {
-        withAuthenticate(object : BiometricPrompt.AuthenticationCallback() {
-            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                read(File(context.filesDir, "$alias-$name").absolutePath, isPrivate).also { byteArray = it }
-            }
-        })}
+            if (context is FragmentActivity)
+            BiometricUtil.withAuthenticate(context, object :
+                BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    read(File(context.filesDir, "$alias-$name").absolutePath, isPrivate).also { byteArray = it }
+                }
+            })
+        }
         else {
             read(File(context.filesDir, "$alias-$name").absolutePath, isPrivate).also { byteArray = it }
         }
