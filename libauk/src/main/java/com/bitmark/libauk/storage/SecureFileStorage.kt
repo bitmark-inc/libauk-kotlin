@@ -76,7 +76,7 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
                     read(File(context.filesDir, "$alias-$name").absolutePath, isPrivate).also { byteArray = it }
                 }
             }).map {
-                println("Authenticated sucess =: $it")
+                println("Authenticated sucess = : $it")
             }
         }
         else {
