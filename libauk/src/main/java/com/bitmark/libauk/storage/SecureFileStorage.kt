@@ -19,7 +19,7 @@ internal interface SecureFileStorage {
 
     fun writeOnFilesDir(name: String, data: ByteArray, isPrivate: Boolean)
 
-    fun readOnFilesDir(name: String, isPrivate: Boolean): ByteArray
+    fun readOnFilesDir(name: String, isPrivate: Boolean): Single<ByteArray>
 
     fun isExistingOnFilesDir(name: String): Boolean
 
@@ -65,24 +65,23 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
         return os.toByteArray()
     }
 
-    override fun readOnFilesDir(name: String, isPrivate: Boolean): ByteArray {
+    override fun readOnFilesDir(name: String, isPrivate: Boolean): Single<ByteArray> {
 
         var byteArray = byteArrayOf()
         if (isPrivate) {
             if (context is FragmentActivity)
-            BiometricUtil.withAuthenticate(context, object :
-                BiometricPrompt.AuthenticationCallback() {
-                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+            return BiometricUtil.withAuthenticate<ByteArray>(activity = context,
+                onAuthenticationSucceeded = { result ->
                     read(File(context.filesDir, "$alias-$name").absolutePath, isPrivate).also { byteArray = it }
-                }
-            }).map {
-                println("Authenticated sucess = : $it")
-            }
+                },
+                onAuthenticationError = { _, _ -> byteArrayOf() },
+                onAuthenticationFailed = { byteArrayOf() }
+            )
         }
         else {
-            read(File(context.filesDir, "$alias-$name").absolutePath, isPrivate).also { byteArray = it }
+            return Single.fromCallable { read(File(context.filesDir, "$alias-$name").absolutePath, isPrivate) }
         }
-        return byteArray
+        return Single.fromCallable { byteArray }
     }
 
     private fun isExisting(path: String): Boolean = File(path).exists()

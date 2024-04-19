@@ -1,4 +1,5 @@
 import android.content.Context
+import androidx.annotation.UiThread
 import androidx.annotation.WorkerThread
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
@@ -10,11 +11,14 @@ import org.web3j.abi.datatypes.Bool
 
 class BiometricUtil {
     companion object {
-        fun withAuthenticate(
+        @UiThread
+        fun <T> withAuthenticate(
             activity: FragmentActivity,
-            listener: BiometricPrompt.AuthenticationCallback
-        ): Single<Bool> {
-            val subject = PublishSubject.create<Bool>()
+            @WorkerThread onAuthenticationSucceeded: (BiometricPrompt.AuthenticationResult) -> T,
+            @WorkerThread onAuthenticationFailed: () -> T,
+            @WorkerThread onAuthenticationError: (Int, CharSequence) -> T
+        ): Single<T> {
+            val subject = PublishSubject.create<T>()
             val executor = ContextCompat.getMainExecutor(activity)
             val biometricPrompt = BiometricPrompt(
                 activity,
@@ -23,14 +27,14 @@ class BiometricUtil {
                     override fun onAuthenticationSucceeded(
                         result: BiometricPrompt.AuthenticationResult
                     ) {
-                        Single.fromCallable { listener.onAuthenticationSucceeded(result) }.map {
-                            subject.onNext(Bool(true))
+                        Single.fromCallable { onAuthenticationSucceeded(result) }.map {
+                            subject.onNext(it)
                         }
                     }
 
                     override fun onAuthenticationFailed() {
-                        Single.fromCallable { listener.onAuthenticationFailed() }.map {
-                            subject.onNext(Bool(false))
+                        Single.fromCallable { onAuthenticationFailed() }.map {
+                            subject.onNext(it)
                         }
                     }
 
@@ -38,9 +42,9 @@ class BiometricUtil {
                         errorCode: Int,
                         errString: CharSequence
                     ) {
-                        Single.fromCallable { listener.onAuthenticationError(errorCode, errString) }
+                        Single.fromCallable { onAuthenticationError(errorCode, errString) }
                             .map {
-                                subject.onNext(Bool(false))
+                                subject.onNext(it)
                             }
                     }
                 }
