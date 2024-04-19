@@ -69,14 +69,18 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
 
         var byteArray = byteArrayOf()
         if (isPrivate) {
-            if (context is FragmentActivity)
-            return BiometricUtil.withAuthenticate<ByteArray>(activity = context,
-                onAuthenticationSucceeded = { result ->
-                    read(File(context.filesDir, "$alias-$name").absolutePath, isPrivate).also { byteArray = it }
-                },
-                onAuthenticationError = { _, _ -> byteArrayOf() },
-                onAuthenticationFailed = { byteArrayOf() }
-            )
+            if (context is FragmentActivity) {
+                return BiometricUtil.withAuthenticate<ByteArray>(activity = context,
+                    onAuthenticationSucceeded = { result ->
+                        read(
+                            File(context.filesDir, "$alias-$name").absolutePath,
+                            isPrivate
+                        ).also { byteArray = it }
+                    },
+                    onAuthenticationError = { _, _ -> byteArrayOf() },
+                    onAuthenticationFailed = { byteArrayOf() }
+                )
+            }
         }
         else {
             return Single.fromCallable { read(File(context.filesDir, "$alias-$name").absolutePath, isPrivate) }
