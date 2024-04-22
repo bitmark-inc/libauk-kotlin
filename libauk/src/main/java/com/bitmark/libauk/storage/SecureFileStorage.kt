@@ -24,8 +24,6 @@ internal interface SecureFileStorage {
 
     fun deleteOnFilesDir(name: String): Boolean
 
-    // read files by list of names
-    // return map<filename: ByteArray>
     fun readFiles(names: List<String>): Single<Map<String, ByteArray>>
 
     fun readAllFiles(nameFilterFunc: (String) -> Boolean): Single<Map<String, ByteArray>>

@@ -5,6 +5,7 @@ import androidx.annotation.WorkerThread
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import com.bitmark.libauk.storage.WalletStorageImpl.Companion.SEED_FILE_NAME
 import io.reactivex.Single
 import io.reactivex.subjects.PublishSubject
 
@@ -12,7 +13,7 @@ class BiometricUtil {
     companion object {
 
         fun isAuthenReuired(fileNames: List<String>): Boolean {
-            return fileNames.any { it.contains("seed") }
+            return fileNames.any { it.contains(SEED_FILE_NAME) }
         }
 
         @UiThread
