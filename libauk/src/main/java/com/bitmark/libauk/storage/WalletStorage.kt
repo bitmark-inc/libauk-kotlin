@@ -165,6 +165,8 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         /* accountDidKey */
         val accountDID = generateAccountDID(seed)
 
+        val accountDidPrivateKey = Bip32ECKeyPair.generateKeyPair(seed.data)
+
         /* pre-generate 100 eth addresses */
         val preGenerateEthAddresses = preGenerateETHAddresses(seed, 0, PRE_GENERATE_ADDRESS_LIMIT)
 
@@ -181,7 +183,8 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
             accountDID,
             preGenerateEthAddresses,
             emptyMap(),
-            encryptionPrivateKey
+            encryptionPrivateKey,
+            accountDidPrivateKey,
         )
     }
 
@@ -222,12 +225,8 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         }
 
     override fun getAccountDIDSignature(message: String): Single<String> {
-        return secureFileStorage.readOnFilesDir(SEED_FILE_NAME).map { json ->
-            val walletSeed = newGsonInstance().fromJson<Seed>(String(json))
-            val mnemonic = MnemonicUtils.generateMnemonic(walletSeed.data)
-
-            val seed = MnemonicUtils.generateSeed(mnemonic, "")
-            val masterKeypair = Bip32ECKeyPair.generateKeyPair(seed)
+        return getSeedPublicData().map { seedPublicData ->
+            val masterKeypair = seedPublicData.accountDIDPrivateKey
             val bip44Keypair = Bip32ECKeyPair.deriveKeyPair(masterKeypair, ACCOUNT_DERIVATION_PATH)
 
             val sigData = Sign.signMessage(
@@ -340,8 +339,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         return Numeric.toBytesPadded(bip44Keypair.privateKey, 32)
     }
     private fun getEncryptKey(usingLegacy: Boolean = false): Single<ByteArray> {
-        return secureFileStorage.readOnFilesDir(SEED_PUBLIC_DATA_FILE_NAME).map { json ->
-            val seedPublicData = newGsonInstance().fromJson<SeedPublicData>(String(json))
+        return getSeedPublicData().map { seedPublicData ->
             seedPublicData.encryptionPrivateKey
         }.map {
             if (usingLegacy) {

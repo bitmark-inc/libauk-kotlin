@@ -3,6 +3,7 @@ package com.bitmark.libauk.model
 import com.fasterxml.jackson.databind.annotation.JsonSerialize
 import com.google.gson.annotations.Expose
 import com.google.gson.annotations.SerializedName
+import org.web3j.crypto.Bip32ECKeyPair
 import java.util.*
 
 @JsonSerialize
@@ -55,9 +56,12 @@ data class SeedPublicData(
     @Expose
     @SerializedName("encryptionPrivateKey")
     val encryptionPrivateKey: ByteArray,
+
+    @Expose
+    @SerializedName("accountDIDPrivateKey")
+    val accountDIDPrivateKey: Bip32ECKeyPair
 //    val tezosPublicKeys: Map<Int, String>,
 
-//    var _encryptionPrivateKeyBase64: String? = null,
 //    var _accountDIDPrivateKeyBase64: String? = null
 ) {
     //    var encryptionPrivateKey: Secp256k1.Signing.PrivateKey?
