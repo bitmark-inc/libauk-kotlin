@@ -10,6 +10,11 @@ import io.reactivex.subjects.PublishSubject
 
 class BiometricUtil {
     companion object {
+
+        fun isAuthenReuired(fileNames: List<String>): Boolean {
+            return fileNames.any { it.contains("seed") }
+        }
+
         @UiThread
         fun <T : Any> withAuthenticate(
             activity: FragmentActivity,
@@ -32,8 +37,6 @@ class BiometricUtil {
 
                     override fun onAuthenticationFailed() {
                         Single.fromCallable { onAuthenticationFailed() }.subscribe(
-                            { subject.onNext(it) },
-                            { subject.onError(it) }
                         ).let {  }
                     }
 

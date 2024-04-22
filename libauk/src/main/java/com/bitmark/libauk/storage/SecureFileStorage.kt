@@ -18,11 +18,17 @@ internal interface SecureFileStorage {
 
     fun writeOnFilesDir(name: String, data: ByteArray, isPrivate: Boolean)
 
-    fun readOnFilesDir(name: String, isPrivate: Boolean): Single<ByteArray>
+    fun readOnFilesDir(name: String): Single<ByteArray>
 
     fun isExistingOnFilesDir(name: String): Boolean
 
     fun deleteOnFilesDir(name: String): Boolean
+
+    // read files by list of names
+    // return map<filename: ByteArray>
+    fun readFiles(names: List<String>): Single<Map<String, ByteArray>>
+
+    fun readAllFiles(nameFilterFunc: (String) -> Boolean): Single<Map<String, ByteArray>>
 }
 
 @Suppress("DEPRECATION")
@@ -64,16 +70,16 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
         return os.toByteArray()
     }
 
-    override fun readOnFilesDir(name: String, isPrivate: Boolean): Single<ByteArray> {
-
+    override fun readOnFilesDir(name: String): Single<ByteArray> {
         var byteArray = byteArrayOf()
-        if (isPrivate) {
+        val isAuthenRequired = BiometricUtil.isAuthenReuired(listOf(name))
+        if (isAuthenRequired) {
             if (context is FragmentActivity) {
                 return BiometricUtil.withAuthenticate<ByteArray>(activity = context,
                     onAuthenticationSucceeded = { result ->
                         read(
                             File(context.filesDir, "$alias-$name").absolutePath,
-                            isPrivate
+                            isAuthenRequired
                         ).also { byteArray = it }
                     },
                     onAuthenticationError = { _, _ -> byteArrayOf() },
@@ -82,10 +88,65 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
             }
         }
         else {
-            return Single.fromCallable { read(File(context.filesDir, "$alias-$name").absolutePath, isPrivate) }
+            return Single.fromCallable { read(File(context.filesDir, "$alias-$name").absolutePath, isAuthenRequired) }
         }
         return Single.fromCallable { byteArray }
     }
+
+    override fun readFiles(names: List<String>): Single<Map<String, ByteArray>> {
+        val map = mutableMapOf<String, ByteArray>()
+        val isAuthenRequired = BiometricUtil.isAuthenReuired(names)
+        if (isAuthenRequired) {
+            BiometricUtil.withAuthenticate(
+                activity = context as FragmentActivity,
+                onAuthenticationSucceeded = { result ->
+                    names.forEach { name ->
+                        read(File(context.filesDir, "$alias-$name").absolutePath, isAuthenRequired).also { map[name] = it }
+                    }
+                    map
+                },
+                onAuthenticationError = { _, _ -> map },
+                onAuthenticationFailed = { map }
+            )
+        }
+        return Single.fromCallable {
+            names.forEach { name ->
+                read(File(context.filesDir, "$alias-$name").absolutePath, isAuthenRequired).also { map[name] = it }
+            }
+            map
+        }
+    }
+
+    override fun readAllFiles(nameFilterFunc: (String) -> Boolean): Single<Map<String, ByteArray>> {
+        val map = mutableMapOf<String, ByteArray>()
+        val listFileName = context.filesDir.list()
+        val isAuthenRequired = BiometricUtil.isAuthenReuired(listFileName.toList())
+        if (isAuthenRequired) {
+            BiometricUtil.withAuthenticate(
+                activity = context as FragmentActivity,
+                onAuthenticationSucceeded = { result ->
+                    context.filesDir.listFiles()?.forEach { file ->
+                        if (nameFilterFunc(file.name)) {
+                            read(file.absolutePath, isAuthenRequired).also { map[file.name] = it }
+                        }
+                    }
+                    map
+                },
+                onAuthenticationError = { _, _ -> map },
+                onAuthenticationFailed = { map }
+            )
+        }
+        return Single.fromCallable {
+            context.filesDir.listFiles()?.forEach { file ->
+                if (nameFilterFunc(file.name)) {
+read(file.absolutePath, isAuthenRequired).also { map[file.name] = it }
+                }
+            }
+            map
+        }
+    }
+
+
 
     private fun isExisting(path: String): Boolean = File(path).exists()
 
