@@ -340,14 +340,14 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         return Numeric.toBytesPadded(bip44Keypair.privateKey, 32)
     }
     private fun getEncryptKey(usingLegacy: Boolean = false): Single<ByteArray> {
-        return secureFileStorage.readOnFilesDir(SEED_FILE_NAME).map { json ->
-            val walletSeed = newGsonInstance().fromJson<Seed>(String(json))
-            val bytes = generateEncryptKey(walletSeed)
-
+        return secureFileStorage.readOnFilesDir(SEED_PUBLIC_DATA_FILE_NAME).map { json ->
+            val seedPublicData = newGsonInstance().fromJson<SeedPublicData>(String(json))
+            seedPublicData.encryptionPrivateKey
+        }.map {
             if (usingLegacy) {
-                bytes
+                it
             } else {
-                HKDF.fromHmacSha256().extractAndExpand(ByteArray(0), bytes, null, 32)
+                HKDF.fromHmacSha256().extractAndExpand(ByteArray(0), it, null, 32)
             }
         }
     }
