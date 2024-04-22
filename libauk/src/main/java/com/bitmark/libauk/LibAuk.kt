@@ -36,7 +36,7 @@ class LibAuk {
     }
 
     fun calculateFirstEthAddress(words: String, passphrase: String): String {
-        val credential = Bip44WalletUtils.loadBip44Credentials(passphrase, words);
+        val credential = Bip44WalletUtils.loadBip44Credentials(passphrase, words)
         return credential.address
     }
 }
