@@ -20,6 +20,8 @@ internal interface SecureFileStorage {
 
     fun readOnFilesDir(name: String): Single<ByteArray>
 
+    fun readOnFilesDirWithoutAuthentication(name: String): ByteArray
+
     fun isExistingOnFilesDir(name: String): Boolean
 
     fun deleteOnFilesDir(name: String): Boolean
@@ -89,6 +91,10 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
             return Single.fromCallable { read(File(context.filesDir, "$alias-$name").absolutePath, isAuthenRequired) }
         }
         return Single.fromCallable { byteArray }
+    }
+
+    override fun readOnFilesDirWithoutAuthentication(name: String): ByteArray {
+        return read(File(context.filesDir, "$alias-$name").absolutePath, false)
     }
 
     override fun readFiles(names: List<String>): Single<Map<String, ByteArray>> {

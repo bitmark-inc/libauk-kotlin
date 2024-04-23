@@ -232,8 +232,13 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
 
     override fun getAccountDIDSignature(message: String): Single<String> {
         return getSeedPublicData().map { seedPublicData ->
-            seedPublicData.accountDIDPrivateKey
-        }.onErrorResumeNext(
+            try {
+                seedPublicData.accountDIDPrivateKey
+            } catch (e: Exception) {
+                throw Throwable("Failed to get accountDIDPrivateKey")
+            }
+        }
+            .onErrorResumeNext(
             getSeed().map { seed ->
                 Bip32ECKeyPair.generateKeyPair(seed.data)
             }
@@ -417,6 +422,13 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
 
     override fun exportMnemonicWords(): Single<String> {
         return secureFileStorage.readOnFilesDir(SEED_FILE_NAME).map { json ->
+            val seed = newGsonInstance().fromJson<Seed>(String(json))
+            MnemonicUtils.generateMnemonic(seed.data)
+        }
+    }
+
+    private fun exportMnemonicWordsToBackup(): Single<String> {
+        return secureFileStorage.readOnFilesDirWithoutAuthentication(SEED_FILE_NAME).map { json ->
             val seed = newGsonInstance().fromJson<Seed>(String(json))
             MnemonicUtils.generateMnemonic(seed.data)
         }
