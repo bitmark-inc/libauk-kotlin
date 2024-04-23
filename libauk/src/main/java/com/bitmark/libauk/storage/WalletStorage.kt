@@ -189,13 +189,13 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
     }
 
     private fun getSeedPublicData(): Single<SeedPublicData> =
-        try{
         secureFileStorage.readOnFilesDir(SEED_PUBLIC_DATA_FILE_NAME).map { json ->
+            try{
             val seedPublicData = newGsonInstance().fromJson<SeedPublicData>(String(json))
             seedPublicData
+            } catch (e: Exception) {
+                throw Throwable("Failed to get seedPublicData")
         }
-        } catch (e: Exception) {
-            Single.error(e)
     }
 
     private fun getSeed(): Single<Seed> = secureFileStorage.readOnFilesDir(SEED_FILE_NAME).map { json ->
@@ -241,7 +241,8 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
             } catch (e: Exception) {
                 throw Throwable("Failed to get accountDIDPrivateKey")
             }
-        }.onErrorResumeNext { error -> getSeed().map { seed ->
+        }.onErrorResumeNext { error ->
+            getSeed().map { seed ->
             Bip32ECKeyPair.generateKeyPair(seed.data)
         }}
             .map { masterKeypair ->
