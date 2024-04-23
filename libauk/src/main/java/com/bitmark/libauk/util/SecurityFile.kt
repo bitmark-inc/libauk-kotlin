@@ -12,7 +12,6 @@ class SecurityFileUtil {
         val map = mutableMapOf<String, ByteArray>()
         val listFileName = context.filesDir.list()
         val isAuthenRequired = BiometricUtil.isAuthenReuired(listFileName.toList(), context)
-        // readFunc is a function that reads the file return ByteArray
         val readFunc: (File) -> ByteArray? = { file ->
             if (nameFilterFunc(file.name)) {
                 val uuid = file.name.substringBefore("-")
