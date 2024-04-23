@@ -1,12 +1,8 @@
+package com.bitmark.libauk.util
+
 import android.content.Context
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
 import androidx.fragment.app.FragmentActivity
-import androidx.security.crypto.EncryptedFile
-import androidx.security.crypto.MasterKey
-import com.bitmark.libauk.LibAuk
 import com.bitmark.libauk.storage.SecureFileStorageImpl
-import com.bitmark.libauk.util.BiometricUtil
 import io.reactivex.Single
 import java.io.File
 import java.util.UUID
