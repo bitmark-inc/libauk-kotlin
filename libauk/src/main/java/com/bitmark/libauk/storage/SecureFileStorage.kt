@@ -31,8 +31,10 @@ internal interface SecureFileStorage {
     fun readAllFiles(nameFilterFunc: (String) -> Boolean): Single<Map<String, ByteArray>>
 }
 
-@Suppress("DEPRECATION")
-internal class SecureFileStorageImpl constructor(private val context: Context, private val alias: UUID) : SecureFileStorage {
+internal class SecureFileStorageImpl(
+    private val context: Context,
+    private val alias: UUID
+) : SecureFileStorage {
 
     private val keyStore: KeyStore = KeyStore.getInstance(ANDROID_KEY_STORE).apply { load(null) }
     private val sharedPreferences = context.getSharedPreferences("beaconsdk", Context.MODE_PRIVATE)
@@ -198,7 +200,13 @@ read(file.absolutePath, isAuthenRequired).also { map[file.name] = it }
             setBlockModes(KeyProperties.BLOCK_MODE_GCM)
             setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
         }
-
+        // if android version is higher than 28
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            parameterSpecBuilder.apply {
+                setUnlockedDeviceRequired(true)
+                setIsStrongBoxBacked(true)
+            }
+        }
 
         val  parameterSpec = parameterSpecBuilder.build()
 

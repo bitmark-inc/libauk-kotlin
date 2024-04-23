@@ -28,9 +28,9 @@ class WalletStorageUnitTest {
         given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.ETH_KEY_INFO_FILE_NAME)).willReturn(
             false
         )
-        doNothing().`when`(secureFileStorage).writeOnFilesDir(any(), any(), true)
+        doNothing().`when`(secureFileStorage).writeOnFilesDir(any(), any())
 
-        walletStorage.createKey(name = "Hello", true).test()
+        walletStorage.createKey(name = "Hello").test()
             .assertComplete()
     }
 
@@ -43,7 +43,7 @@ class WalletStorageUnitTest {
             true
         )
 
-        walletStorage.createKey(name = "Hello", true)
+        walletStorage.createKey(name = "Hello")
             .test()
             .assertError {
                 it.message == "Wallet is already created!"
@@ -60,9 +60,9 @@ class WalletStorageUnitTest {
         given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.ETH_KEY_INFO_FILE_NAME)).willReturn(
             false
         )
-        doNothing().`when`(secureFileStorage).writeOnFilesDir(any(), any(), true)
+        doNothing().`when`(secureFileStorage).writeOnFilesDir(any(), any())
 
-        walletStorage.importKey(words = words, name = "Hello", creationDate = Date(), true)
+        walletStorage.importKey(words = words, name = "Hello", creationDate = Date())
             .test()
             .assertComplete()
     }
@@ -78,7 +78,7 @@ class WalletStorageUnitTest {
             true
         )
 
-        walletStorage.importKey(words = words, name = "Hello", creationDate = Date(), true)
+        walletStorage.importKey(words = words, name = "Hello", creationDate = Date())
             .test()
             .assertError {
                 it.message == "Wallet is already created!"
@@ -107,7 +107,7 @@ class WalletStorageUnitTest {
         val seed = Seed(entropy, Date(), "Test")
         val seedString = newGsonInstance().toJson(seed)
 
-        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.SEED_FILE_NAME, true)).willReturn(
+        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
             seedString.toByteArray()
         )
 
@@ -124,7 +124,7 @@ class WalletStorageUnitTest {
         val seed = Seed(entropy, Date(), "Test")
         val seedString = newGsonInstance().toJson(seed)
 
-        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.SEED_FILE_NAME, true)).willReturn(
+        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
             seedString.toByteArray()
         )
 
@@ -141,7 +141,7 @@ class WalletStorageUnitTest {
         val seed = Seed(entropy, Date(), "Test")
         val seedString = newGsonInstance().toJson(seed)
 
-        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.SEED_FILE_NAME, true)).willReturn(
+        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
             seedString.toByteArray()
         )
 
@@ -158,7 +158,7 @@ class WalletStorageUnitTest {
         val seed = Seed(entropy, Date(), "Test")
         val seedString = newGsonInstance().toJson(seed)
 
-        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.SEED_FILE_NAME, true)).willReturn(
+        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
             seedString.toByteArray()
         )
 
@@ -175,7 +175,7 @@ class WalletStorageUnitTest {
         val seed = Seed(entropy, Date(), "Test")
         val seedString = newGsonInstance().toJson(seed)
 
-        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.SEED_FILE_NAME, true)).willReturn(
+        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
             seedString.toByteArray()
         )
 
@@ -191,7 +191,7 @@ class WalletStorageUnitTest {
         val seed = Seed(entropy, Date(), "Test")
         val seedString = newGsonInstance().toJson(seed)
 
-        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.SEED_FILE_NAME, true)).willReturn(
+        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
             seedString.toByteArray()
         )
 
@@ -214,7 +214,7 @@ class WalletStorageUnitTest {
         val seed = Seed(entropy, Date(), "Test")
         val seedString = newGsonInstance().toJson(seed)
 
-        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.SEED_FILE_NAME, true)).willReturn(
+        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
             seedString.toByteArray()
         )
 
@@ -251,7 +251,7 @@ class WalletStorageUnitTest {
         given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.ETH_KEY_INFO_FILE_NAME)).willReturn(
             true
         )
-        doNothing().`when`(secureFileStorage).writeOnFilesDir(any(), any(), true)
+        doNothing().`when`(secureFileStorage).writeOnFilesDir(any(), any())
 
         walletStorage.removeKeys()
             .test()
