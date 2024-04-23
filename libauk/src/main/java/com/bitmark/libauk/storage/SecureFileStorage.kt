@@ -27,8 +27,6 @@ internal interface SecureFileStorage {
     fun deleteOnFilesDir(name: String): Boolean
 
     fun readFiles(names: List<String>): Single<Map<String, ByteArray>>
-
-    fun readAllFiles(nameFilterFunc: (String) -> Boolean): Single<Map<String, ByteArray>>
 }
 
 internal class SecureFileStorageImpl(
@@ -122,37 +120,6 @@ internal class SecureFileStorageImpl(
             map
         }
     }
-
-    override fun readAllFiles(nameFilterFunc: (String) -> Boolean): Single<Map<String, ByteArray>> {
-        val map = mutableMapOf<String, ByteArray>()
-        val listFileName = context.filesDir.list()
-        val isAuthenRequired = BiometricUtil.isAuthenReuired(listFileName.toList(), context)
-        if (isAuthenRequired) {
-            BiometricUtil.withAuthenticate(
-                activity = context as FragmentActivity,
-                onAuthenticationSucceeded = { result ->
-                    context.filesDir.listFiles()?.forEach { file ->
-                        if (nameFilterFunc(file.name)) {
-                            read(file.absolutePath, isAuthenRequired).also { map[file.name] = it }
-                        }
-                    }
-                    map
-                },
-                onAuthenticationError = { _, _ -> map },
-                onAuthenticationFailed = { map }
-            )
-        }
-        return Single.fromCallable {
-            context.filesDir.listFiles()?.forEach { file ->
-                if (nameFilterFunc(file.name)) {
-read(file.absolutePath, isAuthenRequired).also { map[file.name] = it }
-                }
-            }
-            map
-        }
-    }
-
-
 
     private fun isExisting(path: String): Boolean = File(path).exists()
 
