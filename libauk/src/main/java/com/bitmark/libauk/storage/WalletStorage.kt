@@ -428,7 +428,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
     }
 
     private fun exportMnemonicWordsToBackup(): Single<String> {
-        return secureFileStorage.readOnFilesDirWithoutAuthentication(SEED_FILE_NAME).map { json ->
+        return Single.just(secureFileStorage.readOnFilesDirWithoutAuthentication(SEED_FILE_NAME)).map { json ->
             val seed = newGsonInstance().fromJson<Seed>(String(json))
             MnemonicUtils.generateMnemonic(seed.data)
         }
