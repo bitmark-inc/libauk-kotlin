@@ -14,8 +14,6 @@ import com.bitmark.libauk.Const.ENCRYPT_KEY_DERIVATION_PATH
 import com.bitmark.libauk.model.KeyInfo
 import com.bitmark.libauk.model.Seed
 import com.bitmark.libauk.model.SeedPublicData
-import com.bitmark.libauk.storage.WalletStorageImpl.Companion.SEED_PUBLIC_DATA_FILE_NAME
-import com.bitmark.libauk.storage.WalletStorageImpl.Companion.SEED_FILE_NAME
 import com.bitmark.libauk.util.fromJson
 import com.bitmark.libauk.util.newGsonInstance
 import io.camlcase.kotlintezos.model.TezosError
@@ -41,6 +39,10 @@ import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
 import kotlin.Pair
 
+const val SEED_FILE_NAME = "libauk_seed.dat"
+const val ETH_KEY_INFO_FILE_NAME = "libauk_eth_key_info.dat"
+const val SEED_PUBLIC_DATA_FILE_NAME = "libauk_seed_public_data.dat"
+const val PRE_GENERATE_ADDRESS_LIMIT = 3
 interface WalletStorage {
     fun createKey(passphrase: String? = "", name: String, isPrivate: Boolean): Completable
     fun importKey(
@@ -88,16 +90,11 @@ interface WalletStorage {
     fun tezosSignMessageWithIndex(message: ByteArray, index: Int): Single<ByteArray>
     fun tezosTransactionWithIndex(forgedHex: String, index: Int): Single<ByteArray>
     fun removeKeys(): Completable
+
+    fun removeKey(name: String): Completable
 }
 
 internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorage) : WalletStorage {
-
-    companion object {
-        const val SEED_FILE_NAME = "libauk_seed.dat"
-        const val ETH_KEY_INFO_FILE_NAME = "libauk_eth_key_info.dat"
-        const val SEED_PUBLIC_DATA_FILE_NAME = "libauk_seed_public_data.dat"
-        const val PRE_GENERATE_ADDRESS_LIMIT = 3
-    }
 
     override fun createKey(passphrase: String?, name: String, isPrivate: Boolean): Completable = secureFileStorage.rxSingle { storage ->
         storage.isExistingOnFilesDir(SEED_FILE_NAME) && storage.isExistingOnFilesDir(
@@ -553,6 +550,10 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
                 storage.deleteOnFilesDir(SEED_PUBLIC_DATA_FILE_NAME)
             }
         }
+
+    override fun removeKey(name: String): Completable = secureFileStorage.rxCompletable { storage ->
+        storage.deleteOnFilesDir(name)
+    }
 
     private fun generateMnemonic(): String {
         val initialEntropy = ByteArray(16)
