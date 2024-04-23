@@ -6,7 +6,7 @@ import androidx.annotation.WorkerThread
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
-import com.bitmark.libauk.storage.WalletStorageImpl.Companion.SEED_FILE_NAME
+import com.bitmark.libauk.storage.SEED_FILE_NAME
 import io.reactivex.Single
 import io.reactivex.subjects.PublishSubject
 
