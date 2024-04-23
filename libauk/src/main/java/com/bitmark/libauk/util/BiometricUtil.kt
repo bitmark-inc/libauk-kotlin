@@ -1,5 +1,6 @@
 package com.bitmark.libauk.util
 
+import android.content.Context
 import androidx.annotation.UiThread
 import androidx.annotation.WorkerThread
 import androidx.biometric.BiometricPrompt
@@ -12,8 +13,17 @@ import io.reactivex.subjects.PublishSubject
 class BiometricUtil {
     companion object {
 
-        fun isAuthenReuired(fileNames: List<String>): Boolean {
-            return fileNames.any { it.contains(SEED_FILE_NAME) }
+        fun isAuthenReuired(fileNames: List<String>, context: Context): Boolean {
+            return fileNames.any { it.contains(SEED_FILE_NAME) } && isDevicePasscodeEnabled(context)
+        }
+
+        private fun isDevicePasscodeEnabled(context: Context): Boolean {
+            val sharedPreferences = context.getSharedPreferences(
+                "FlutterSharedPreferences",
+                Context.MODE_PRIVATE
+            )
+
+            return sharedPreferences.getBoolean("flutter.device_passcode", false)
         }
 
         @UiThread

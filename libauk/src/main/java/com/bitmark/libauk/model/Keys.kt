@@ -54,6 +54,10 @@ data class SeedPublicData(
     val preGenerateTezosAddress: Map<Int, String>,
 
     @Expose
+    @SerializedName("preGenerateTezosPublicKeys")
+    val preGenerateTezosPublicKeys: Map<Int, String>,
+
+    @Expose
     @SerializedName("encryptionPrivateKey")
     val encryptionPrivateKey: ByteArray,
 

@@ -153,9 +153,6 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
     }
 
     private fun generateSeedPublicData(seed: Seed) : SeedPublicData {
-        /* mnemonic */
-//        val mnemonic = MnemonicUtils.generateMnemonic(seed.data)
-
         /* ethAddress */
         val ethAddress = generateETHAddress(seed)
 
@@ -170,6 +167,8 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         /* pre-generate 100 eth addresses */
         val preGenerateEthAddresses = preGenerateETHAddresses(seed, 0, PRE_GENERATE_ADDRESS_LIMIT)
 
+        val preGenerateTezosAddress = preGenerateTezosAddresses(seed, 0, PRE_GENERATE_ADDRESS_LIMIT)
+
         /* encrytion private key */
         val encryptionPrivateKey = generateEncryptKey(seed)
 
@@ -182,7 +181,8 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
             seedName,
             accountDID,
             preGenerateEthAddresses,
-            emptyMap(),
+            preGenerateTezosAddress,
+            preGenerateTezosPublicKeys,
             encryptionPrivateKey,
             accountDidPrivateKey,
         )
@@ -194,13 +194,17 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         seedPublicData
     }
 
+    private fun getSeed(): Single<Seed> = secureFileStorage.readOnFilesDir(SEED_FILE_NAME).map { json ->
+        newGsonInstance().fromJson<Seed>(String(json))
+    }
+
     override fun getName(): Single<String> = getSeedPublicData()
         .map { seedPublicData ->
             // Process seedPublicData and extract the name
             seedPublicData.name ?: ""
         }
         .onErrorResumeNext { error ->
-            Single.error(Throwable("Failed to get name: ${error.message}"))
+            Single.fromCallable { ""  }
         }
     
     private fun generateAccountDID(walletSeed: Seed) : String {
@@ -220,13 +224,20 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
             // Process seedPublicData and extract the accountDID
             seedPublicData.did
         }
-        .onErrorResumeNext { error ->
-            Single.error(Throwable("Failed to get accountDID: ${error.message}"))
+        .onErrorResumeNext {
+            getSeed().map { seed ->
+                generateAccountDID(seed)
+            }
         }
 
     override fun getAccountDIDSignature(message: String): Single<String> {
         return getSeedPublicData().map { seedPublicData ->
-            val masterKeypair = seedPublicData.accountDIDPrivateKey
+            seedPublicData.accountDIDPrivateKey
+        }.onErrorResumeNext(
+            getSeed().map { seed ->
+                Bip32ECKeyPair.generateKeyPair(seed.data)
+            }
+        ).map { masterKeypair ->
             val bip44Keypair = Bip32ECKeyPair.deriveKeyPair(masterKeypair, ACCOUNT_DERIVATION_PATH)
 
             val sigData = Sign.signMessage(
@@ -234,7 +245,6 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
                 bip44Keypair,
                 false
             )
-
             derSignature(sigData)
         }
     }
@@ -252,7 +262,9 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
             seedPublicData.ethAddress
         }
         .onErrorResumeNext { error ->
-            Single.error(Throwable("Failed to get ethAddress: ${error.message}"))
+            getSeed().map { seed ->
+                generateETHAddress(seed)
+            }
         }
 
     private fun preGenerateETHAddresses(seed: Seed, start: Int, end: Int): Map<Int, String>
@@ -261,6 +273,16 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         for (i in start until end) {
             val credential = generateETHCredentialWithIndex(seed, i)
             addresses[i] = credential.address
+        }
+        return addresses
+    }
+
+    private fun preGenerateTezosAddresses(seed: Seed, start: Int, end: Int): Map<Int, String>
+    {
+        val addresses = mutableMapOf<Int, String>()
+        for (i in start until end) {
+            val wallet = getTezosWalletWithIndexFromSeed(seed, i)
+            addresses[i] = wallet.publicKey.base58Representation
         }
         return addresses
     }
@@ -411,12 +433,16 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
 
     private fun getTezosWalletWithIndex(index: Int): Single<HDWallet> {
         return secureFileStorage.readOnFilesDir(SEED_FILE_NAME).map { json ->
-            val seed = newGsonInstance().fromJson<Seed>(String(json))
-            MnemonicUtils.generateMnemonic(seed.data)
+            newGsonInstance().fromJson<Seed>(String(json))
         }.map {
-            val path = "m/44\'/1729\'/${index}\'/0\'"
-            HDWallet(it.split(" "), derivationPath = path)
+            getTezosWalletWithIndexFromSeed(it, index)
         }
+    }
+
+    private fun getTezosWalletWithIndexFromSeed(seed: Seed, index: Int): HDWallet {
+        val mnemonic = MnemonicUtils.generateMnemonic(seed.data)
+        val path = "m/44\'/1729\'/${index}\'/0\'"
+        return HDWallet(mnemonic.split(" "), derivationPath = path)
     }
 
     private fun generateTezosPublicKeys(walletSeed: Seed, start: Int, end: Int): Map<Int, String> {
@@ -430,9 +456,20 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
     }
 
     override fun getTezosPublicKeyWithIndex(index: Int): Single<String> =
-        getTezosWalletWithIndex(index).map {
-            it.publicKey.base58Representation
-        }
+        getSeedPublicData().map {
+            val address = it.preGenerateTezosPublicKeys[index]
+            if (address.isNullOrEmpty()) {
+                throw Throwable("Failed to get tezosPublicKey with index: $index")
+            } else {
+                address
+            }
+        }.onErrorResumeNext(
+            getSeed().map { seed ->
+                val wallet = getTezosWalletWithIndexFromSeed(seed, index)
+                val publicKey = wallet.publicKey.base58Representation
+                publicKey
+            }
+        )
 
     override fun tezosSignMessage(message: ByteArray): Single<ByteArray> = getTezosWallet().map {
         val hashedMessage = SodiumFacade.hash(message, 32)

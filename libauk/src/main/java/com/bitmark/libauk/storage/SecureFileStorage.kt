@@ -70,7 +70,7 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
 
     override fun readOnFilesDir(name: String): Single<ByteArray> {
         var byteArray = byteArrayOf()
-        val isAuthenRequired = BiometricUtil.isAuthenReuired(listOf(name))
+        val isAuthenRequired = BiometricUtil.isAuthenReuired(listOf(name), context)
         if (isAuthenRequired) {
             if (context is FragmentActivity) {
                 return BiometricUtil.withAuthenticate<ByteArray>(activity = context,
@@ -93,7 +93,7 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
 
     override fun readFiles(names: List<String>): Single<Map<String, ByteArray>> {
         val map = mutableMapOf<String, ByteArray>()
-        val isAuthenRequired = BiometricUtil.isAuthenReuired(names)
+        val isAuthenRequired = BiometricUtil.isAuthenReuired(names, context)
         if (isAuthenRequired) {
             BiometricUtil.withAuthenticate(
                 activity = context as FragmentActivity,
@@ -118,7 +118,7 @@ internal class SecureFileStorageImpl constructor(private val context: Context, p
     override fun readAllFiles(nameFilterFunc: (String) -> Boolean): Single<Map<String, ByteArray>> {
         val map = mutableMapOf<String, ByteArray>()
         val listFileName = context.filesDir.list()
-        val isAuthenRequired = BiometricUtil.isAuthenReuired(listFileName.toList())
+        val isAuthenRequired = BiometricUtil.isAuthenReuired(listFileName.toList(), context)
         if (isAuthenRequired) {
             BiometricUtil.withAuthenticate(
                 activity = context as FragmentActivity,
