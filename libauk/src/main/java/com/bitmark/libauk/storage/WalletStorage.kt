@@ -51,6 +51,10 @@ interface WalletStorage {
         isPrivate: Boolean
     ): Completable
 
+    fun exportSeed(withAuthentication: Boolean): Single<Seed>
+
+    fun generateSeedPublicData(seed: Seed) : SeedPublicData
+
     fun isWalletCreated(): Single<Boolean>
     fun getName(): Single<String>
     fun getAccountDID(): Single<String>
@@ -154,13 +158,19 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
                 }
             }
 
+    override fun exportSeed(withAuthentication: Boolean): Single<Seed> = if (withAuthentication) {
+        getSeed()
+    } else {
+        getSeedWithoutAuthentication()
+    }
+
     override fun isWalletCreated(): Single<Boolean> = secureFileStorage.rxSingle { storage ->
         storage.isExistingOnFilesDir(SEED_FILE_NAME) && storage.isExistingOnFilesDir(
             SEED_PUBLIC_DATA_FILE_NAME
         )
     }
 
-    private fun generateSeedPublicData(seed: Seed) : SeedPublicData {
+    override fun generateSeedPublicData(seed: Seed) : SeedPublicData {
         /* ethAddress */
         val ethAddress = generateETHAddress(seed)
 
@@ -207,6 +217,12 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
     }
 
     private fun getSeed(): Single<Seed> = secureFileStorage.readOnFilesDir(SEED_FILE_NAME).map { json ->
+        newGsonInstance().fromJson<Seed>(String(json))
+    }
+
+    private fun getSeedWithoutAuthentication(): Single<Seed> = Single.fromCallable(
+        {secureFileStorage.readOnFilesDirWithoutAuthentication(SEED_FILE_NAME)}
+    ).map { json ->
         newGsonInstance().fromJson<Seed>(String(json))
     }
 
