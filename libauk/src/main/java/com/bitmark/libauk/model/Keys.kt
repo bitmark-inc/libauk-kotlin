@@ -7,17 +7,6 @@ import org.web3j.crypto.Bip32ECKeyPair
 import java.util.*
 
 @JsonSerialize
-data class KeyIdentity(
-    @Expose
-    @SerializedName("words")
-    val words: String,
-
-    @Expose
-    @SerializedName("passphrase")
-    val passphrase: String
-)
-
-@JsonSerialize
 data class KeyInfo(
     @Expose
     @SerializedName("ethAddress")
@@ -64,43 +53,8 @@ data class SeedPublicData(
     @Expose
     @SerializedName("accountDIDPrivateKey")
     val accountDIDPrivateKey: Bip32ECKeyPair
-//    val tezosPublicKeys: Map<Int, String>,
 
-//    var _accountDIDPrivateKeyBase64: String? = null
 ) {
-    //    var encryptionPrivateKey: Secp256k1.Signing.PrivateKey?
-//        get() {
-//            return try {
-//                _encryptionPrivateKeyBase64?.let { base64String ->
-//                    val data = android.util.Base64.decode(base64String, android.util.Base64.DEFAULT)
-//                    Secp256k1.Signing.PrivateKey(rawRepresentation = data)
-//                }
-//            } catch (e: Exception) {
-//                throw RuntimeException("Failed to initialize private key: ${e.message}")
-//            }
-//        }
-//        set(value) {
-//            _encryptionPrivateKeyBase64 = value?.let {
-//                android.util.Base64.encodeToString(it.rawRepresentation, android.util.Base64.DEFAULT)
-//            }
-//        }
-//
-//    var accountDIDPrivateKey: Secp256k1.Signing.PrivateKey?
-//        get() {
-//            return try {
-//                _accountDIDPrivateKeyBase64?.let { base64String ->
-//                    val data = android.util.Base64.decode(base64String, android.util.Base64.DEFAULT)
-//                    Secp256k1.Signing.PrivateKey(rawRepresentation = data)
-//                }
-//            } catch (e: Exception) {
-//                throw RuntimeException("Failed to initialize private key: ${e.message}")
-//            }
-//        }
-//        set(value) {
-//            _accountDIDPrivateKeyBase64 = value?.let {
-//                android.util.Base64.encodeToString(it.rawRepresentation, android.util.Base64.DEFAULT)
-//            }
-//        }
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false

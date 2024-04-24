@@ -42,7 +42,7 @@ class BiometricUtil {
                     override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                         Single.fromCallable { onAuthenticationSucceeded(result) }.subscribe(
                             { subject.onNext(it) },
-                            { subject.onError(it) }
+                            { subject.onComplete() }
                         ).let { }
                     }
 

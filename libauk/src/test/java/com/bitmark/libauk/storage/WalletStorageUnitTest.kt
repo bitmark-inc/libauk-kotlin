@@ -3,6 +3,7 @@ package com.bitmark.libauk.storage
 import com.bitmark.libauk.model.Seed
 import com.bitmark.libauk.util.newGsonInstance
 import com.nhaarman.mockitokotlin2.*
+import io.reactivex.Single
 import org.junit.Before
 import org.junit.Test
 import org.web3j.crypto.MnemonicUtils
@@ -22,28 +23,28 @@ class WalletStorageUnitTest {
 
     @Test
     fun createKey() {
-        given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
+        given(secureFileStorage.isExistingOnFilesDir(SEED_FILE_NAME)).willReturn(
             false
         )
-        given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.ETH_KEY_INFO_FILE_NAME)).willReturn(
+        given(secureFileStorage.isExistingOnFilesDir(ETH_KEY_INFO_FILE_NAME)).willReturn(
             false
         )
-        doNothing().`when`(secureFileStorage).writeOnFilesDir(any(), any())
+        doNothing().`when`(secureFileStorage).writeOnFilesDir(any(), any(), any())
 
-        walletStorage.createKey(name = "Hello").test()
+        walletStorage.createKey(name = "Hello", passphrase = "", isPrivate = true).test()
             .assertComplete()
     }
 
     @Test
     fun createKeyExistingError() {
-        given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
+        given(secureFileStorage.isExistingOnFilesDir(SEED_FILE_NAME)).willReturn(
             true
         )
-        given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.ETH_KEY_INFO_FILE_NAME)).willReturn(
+        given(secureFileStorage.isExistingOnFilesDir(ETH_KEY_INFO_FILE_NAME)).willReturn(
             true
         )
 
-        walletStorage.createKey(name = "Hello")
+        walletStorage.createKey(name = "Hello", passphrase = "", isPrivate = true)
             .test()
             .assertError {
                 it.message == "Wallet is already created!"
@@ -54,15 +55,15 @@ class WalletStorageUnitTest {
     fun importKey() {
         val words = listOf("victory", "fatigue", "diet", "funny", "senior", "coral", "motion", "canal", "leg", "elite", "hen", "model")
 
-        given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
+        given(secureFileStorage.isExistingOnFilesDir(SEED_FILE_NAME)).willReturn(
             false
         )
-        given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.ETH_KEY_INFO_FILE_NAME)).willReturn(
+        given(secureFileStorage.isExistingOnFilesDir(ETH_KEY_INFO_FILE_NAME)).willReturn(
             false
         )
-        doNothing().`when`(secureFileStorage).writeOnFilesDir(any(), any())
+        doNothing().`when`(secureFileStorage).writeOnFilesDir(any(), any(), any())
 
-        walletStorage.importKey(words = words, name = "Hello", creationDate = Date())
+        walletStorage.importKey(words = words, passphrase = "", name = "Hello", creationDate = Date(), isPrivate = true)
             .test()
             .assertComplete()
     }
@@ -71,14 +72,14 @@ class WalletStorageUnitTest {
     fun importKeyExistingError() {
         val words = listOf("victory", "fatigue", "diet", "funny", "senior", "coral", "motion", "canal", "leg", "elite", "hen", "model")
 
-        given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
+        given(secureFileStorage.isExistingOnFilesDir(SEED_FILE_NAME)).willReturn(
             true
         )
-        given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.ETH_KEY_INFO_FILE_NAME)).willReturn(
+        given(secureFileStorage.isExistingOnFilesDir(ETH_KEY_INFO_FILE_NAME)).willReturn(
             true
         )
 
-        walletStorage.importKey(words = words, name = "Hello", creationDate = Date())
+        walletStorage.importKey(words = words, passphrase = "", name = "Hello", creationDate = Date(), isPrivate = true)
             .test()
             .assertError {
                 it.message == "Wallet is already created!"
@@ -87,10 +88,10 @@ class WalletStorageUnitTest {
 
     @Test
     fun isWalletCreated() {
-        given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
+        given(secureFileStorage.isExistingOnFilesDir(SEED_FILE_NAME)).willReturn(
             true
         )
-        given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.ETH_KEY_INFO_FILE_NAME)).willReturn(
+        given(secureFileStorage.isExistingOnFilesDir(ETH_KEY_INFO_FILE_NAME)).willReturn(
             true
         )
 
@@ -104,11 +105,11 @@ class WalletStorageUnitTest {
     fun getAccountDID() {
         val words = "daring mix cradle palm crowd sea observe whisper rubber either uncle oak"
         val entropy = MnemonicUtils.generateEntropy(words)
-        val seed = Seed(entropy, Date(), "Test")
+        val seed = Seed(entropy, Date(), "Test", passphrase = "")
         val seedString = newGsonInstance().toJson(seed)
 
-        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
-            seedString.toByteArray()
+        given(secureFileStorage.readOnFilesDir(SEED_FILE_NAME)).willReturn(
+            Single.just(seedString.toByteArray())
         )
 
         walletStorage.getAccountDID()
@@ -121,11 +122,11 @@ class WalletStorageUnitTest {
     fun getAccountDIDSignature() {
         val words = "daring mix cradle palm crowd sea observe whisper rubber either uncle oak"
         val entropy = MnemonicUtils.generateEntropy(words)
-        val seed = Seed(entropy, Date(), "Test")
+        val seed = Seed(entropy, Date(), "Test", passphrase = "")
         val seedString = newGsonInstance().toJson(seed)
 
-        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
-            seedString.toByteArray()
+        given(secureFileStorage.readOnFilesDir(SEED_FILE_NAME)).willReturn(
+            Single.just(seedString.toByteArray())
         )
 
         walletStorage.getAccountDIDSignature("hello")
@@ -138,11 +139,11 @@ class WalletStorageUnitTest {
     fun getETHAddress() {
         val words = "victory fatigue diet funny senior coral motion canal leg elite hen model"
         val entropy = MnemonicUtils.generateEntropy(words)
-        val seed = Seed(entropy, Date(), "Test")
+        val seed = Seed(entropy, Date(), "Test", passphrase = "")
         val seedString = newGsonInstance().toJson(seed)
 
-        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
-            seedString.toByteArray()
+        given(secureFileStorage.readOnFilesDir(SEED_FILE_NAME)).willReturn(
+            Single.just(seedString.toByteArray())
         )
 
         walletStorage.getETHAddress()
@@ -155,11 +156,11 @@ class WalletStorageUnitTest {
     fun getETHAddressWithIndex() {
         val words = "victory fatigue diet funny senior coral motion canal leg elite hen model"
         val entropy = MnemonicUtils.generateEntropy(words)
-        val seed = Seed(entropy, Date(), "Test")
+        val seed = Seed(entropy, Date(), "Test", passphrase = "")
         val seedString = newGsonInstance().toJson(seed)
 
-        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
-            seedString.toByteArray()
+        given(secureFileStorage.readOnFilesDir(SEED_FILE_NAME)).willReturn(
+            Single.just(seedString.toByteArray())
         )
 
         walletStorage.getETHAddressWithIndex(1)
@@ -172,11 +173,11 @@ class WalletStorageUnitTest {
     fun signPersonalMessage() {
         val words = "victory fatigue diet funny senior coral motion canal leg elite hen model"
         val entropy = MnemonicUtils.generateEntropy(words)
-        val seed = Seed(entropy, Date(), "Test")
+        val seed = Seed(entropy, Date(), "Test", passphrase = "")
         val seedString = newGsonInstance().toJson(seed)
 
-        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
-            seedString.toByteArray()
+        given(secureFileStorage.readOnFilesDir(SEED_FILE_NAME)).willReturn(
+            Single.just(seedString.toByteArray())
         )
 
         walletStorage.ethSignMessage("hello".toByteArray(), true)
@@ -188,11 +189,11 @@ class WalletStorageUnitTest {
     fun signTransaction() {
         val words = "victory fatigue diet funny senior coral motion canal leg elite hen model"
         val entropy = MnemonicUtils.generateEntropy(words)
-        val seed = Seed(entropy, Date(), "Test")
+        val seed = Seed(entropy, Date(), "Test", passphrase = "")
         val seedString = newGsonInstance().toJson(seed)
 
-        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
-            seedString.toByteArray()
+        given(secureFileStorage.readOnFilesDir(SEED_FILE_NAME)).willReturn(
+            Single.just(seedString.toByteArray())
         )
 
         val transaction = RawTransaction.createEtherTransaction(
@@ -211,11 +212,11 @@ class WalletStorageUnitTest {
     fun exportSeed() {
         val words = "victory fatigue diet funny senior coral motion canal leg elite hen model"
         val entropy = MnemonicUtils.generateEntropy(words)
-        val seed = Seed(entropy, Date(), "Test")
+        val seed = Seed(entropy, Date(), "Test", passphrase = "")
         val seedString = newGsonInstance().toJson(seed)
 
-        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
-            seedString.toByteArray()
+        given(secureFileStorage.readOnFilesDir(SEED_FILE_NAME)).willReturn(
+            Single.just(seedString.toByteArray())
         )
 
         walletStorage.exportMnemonicWords()
@@ -225,33 +226,15 @@ class WalletStorageUnitTest {
             )
     }
 
-//    @Test
-//    fun getTezosWallet() {
-//        val words = "victory fatigue diet funny senior coral motion canal leg elite hen model"
-//        val entropy = MnemonicUtils.generateEntropy(words)
-//        val seed = Seed(entropy, Date(), "Test")
-//        val seedString = newGsonInstance().toJson(seed)
-//
-//        given(secureFileStorage.readOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
-//            seedString.toByteArray()
-//        )
-//
-//        walletStorage.getTezosWallet()
-//            .test()
-//            .assertValue {
-//                it.mainAddress == "tz10000"
-//            }
-//    }
-
     @Test
     fun removeKeys() {
-        given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
+        given(secureFileStorage.isExistingOnFilesDir(SEED_FILE_NAME)).willReturn(
             true
         )
-        given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.ETH_KEY_INFO_FILE_NAME)).willReturn(
+        given(secureFileStorage.isExistingOnFilesDir(ETH_KEY_INFO_FILE_NAME)).willReturn(
             true
         )
-        doNothing().`when`(secureFileStorage).writeOnFilesDir(any(), any())
+        doNothing().`when`(secureFileStorage).writeOnFilesDir(any(), any(), any())
 
         walletStorage.removeKeys()
             .test()
@@ -260,10 +243,10 @@ class WalletStorageUnitTest {
 
     @Test
     fun removeKeysError() {
-        given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.SEED_FILE_NAME)).willReturn(
+        given(secureFileStorage.isExistingOnFilesDir(SEED_FILE_NAME)).willReturn(
             false
         )
-        given(secureFileStorage.isExistingOnFilesDir(WalletStorageImpl.ETH_KEY_INFO_FILE_NAME)).willReturn(
+        given(secureFileStorage.isExistingOnFilesDir(ETH_KEY_INFO_FILE_NAME)).willReturn(
             false
         )
 

@@ -44,7 +44,7 @@ class SecureFileStorageTest {
                 .assertComplete()
                 .assertNoErrors()
 
-            secureFileStorage.rxSingle { gw -> String(gw.readOnFilesDir(d.key, true)) }
+            secureFileStorage.readOnFilesDir(d.key).map { byteArray -> String(byteArray) }
                 .test()
                 .assertComplete()
                 .assertNoErrors()
@@ -73,7 +73,7 @@ class SecureFileStorageTest {
                 .assertComplete()
                 .assertNoErrors()
 
-            secureFileStorage.rxSingle { gw -> String(gw.readOnFilesDir(d.key, true)) }
+            secureFileStorage.readOnFilesDir(d.key).map { byteArray -> String(byteArray) }
                 .test()
                 .assertComplete()
                 .assertNoErrors()
