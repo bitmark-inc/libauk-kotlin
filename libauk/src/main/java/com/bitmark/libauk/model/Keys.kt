@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize
 import com.google.gson.annotations.Expose
 import com.google.gson.annotations.SerializedName
 import org.web3j.crypto.Bip32ECKeyPair
+import java.math.BigInteger
 import java.util.*
 
 @JsonSerialize
@@ -51,8 +52,12 @@ data class SeedPublicData(
     val encryptionPrivateKey: ByteArray,
 
     @Expose
-    @SerializedName("accountDIDPrivateKey")
-    val accountDIDPrivateKey: Bip32ECKeyPair
+    @SerializedName("dIDPrivateKey")
+    private  var dIDPrivateKey: BigInteger,
+
+    @Expose
+    @SerializedName("chainCode")
+    private val chainCode: ByteArray
 
 ) {
     override fun equals(other: Any?): Boolean {
@@ -81,5 +86,9 @@ data class SeedPublicData(
         result = 31 * result + preGenerateTezosAddress.hashCode()
         result = 31 * result + encryptionPrivateKey.contentHashCode()
         return result
+    }
+
+    fun getAccountDIDPrivateKey(): Bip32ECKeyPair {
+        return Bip32ECKeyPair.create(dIDPrivateKey, chainCode)
     }
 }
