@@ -239,7 +239,6 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         val seed = MnemonicUtils.generateSeed(mnemonic, walletSeed.passphrase ?: "")
         val masterKeypair = Bip32ECKeyPair.generateKeyPair(seed)
         val bip44Keypair = Bip32ECKeyPair.deriveKeyPair(masterKeypair, ACCOUNT_DERIVATION_PATH)
-
         val prefix: ByteArray = listOf(231, 1).map { it.toByte() }.toByteArray()
         val compressedPubKey = compressPubKey(bip44Keypair.publicKey)
         return "did:key:z${Base58.BASE_58.encode(prefix + compressedPubKey.hexStringToByteArray())}"
