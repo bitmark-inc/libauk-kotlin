@@ -36,12 +36,12 @@ data class SeedPublicData(
     val did: String,
 
     @Expose
-    @SerializedName("preGenerateEthAddress")
-    val preGenerateEthAddress: Map<Int, String>,
+    @SerializedName("preGenerateEthAddresses")
+    val preGenerateEthAddresses: Map<Int, String>,
 
     @Expose
-    @SerializedName("preGenerateTezosAddress")
-    val preGenerateTezosAddress: Map<Int, String>,
+    @SerializedName("preGenerateTezosAddresses")
+    val preGenerateTezosAddresses: Map<Int, String>,
 
     @Expose
     @SerializedName("preGenerateTezosPublicKeys")
@@ -70,8 +70,8 @@ data class SeedPublicData(
         if (creationDate != other.creationDate) return false
         if (name != other.name) return false
         if (did != other.did) return false
-        if (preGenerateEthAddress != other.preGenerateEthAddress) return false
-        if (preGenerateTezosAddress != other.preGenerateTezosAddress) return false
+        if (preGenerateEthAddresses != other.preGenerateEthAddresses) return false
+        if (preGenerateTezosAddresses != other.preGenerateTezosAddresses) return false
         if (!encryptionPrivateKey.contentEquals(other.encryptionPrivateKey)) return false
 
         return true
@@ -82,8 +82,8 @@ data class SeedPublicData(
         result = 31 * result + creationDate.hashCode()
         result = 31 * result + (name?.hashCode() ?: 0)
         result = 31 * result + did.hashCode()
-        result = 31 * result + preGenerateEthAddress.hashCode()
-        result = 31 * result + preGenerateTezosAddress.hashCode()
+        result = 31 * result + preGenerateEthAddresses.hashCode()
+        result = 31 * result + preGenerateTezosAddresses.hashCode()
         result = 31 * result + encryptionPrivateKey.contentHashCode()
         return result
     }

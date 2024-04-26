@@ -49,8 +49,7 @@ class BiometricUtil {
                     }
 
                     override fun onAuthenticationFailed() {
-                        Single.fromCallable { onAuthenticationFailed() }.subscribe(
-                        ).let {  }
+                        onAuthenticationFailed()
                     }
 
                     override fun onAuthenticationError(

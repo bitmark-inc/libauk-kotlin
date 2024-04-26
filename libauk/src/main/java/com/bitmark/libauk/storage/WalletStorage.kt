@@ -182,7 +182,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         /* pre-generate 100 eth addresses */
         val preGenerateEthAddresses = preGenerateETHAddresses(seed, 0, PRE_GENERATE_ADDRESS_LIMIT)
 
-        val preGenerateTezosAddress = preGenerateTezosAddresses(seed, 0, PRE_GENERATE_ADDRESS_LIMIT)
+        val preGenerateTezosAddresses = preGenerateTezosAddresses(seed, 0, PRE_GENERATE_ADDRESS_LIMIT)
 
         /* encrytion private key */
         val encryptionPrivateKey = generateEncryptKey(seed)
@@ -196,7 +196,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
             seedName,
             accountDID,
             preGenerateEthAddresses,
-            preGenerateTezosAddress,
+            preGenerateTezosAddresses,
             preGenerateTezosPublicKeys,
             encryptionPrivateKey,
             accountDidPrivateKey.privateKey,
@@ -320,7 +320,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         getSeedPublicData()
             .map { seedPublicData ->
                 // Process seedPublicData and extract the ethAddress with index
-                val address = seedPublicData.preGenerateEthAddress[index]
+                val address = seedPublicData.preGenerateEthAddresses[index]
                 if (address.isNullOrEmpty()) {
                     throw Throwable("Failed to get ethAddress with index: $index")
                 } else {

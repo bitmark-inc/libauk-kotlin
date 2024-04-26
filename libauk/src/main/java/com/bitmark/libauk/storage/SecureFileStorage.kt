@@ -71,9 +71,8 @@ internal class SecureFileStorageImpl(
     }
 
     override fun readOnFilesDir(name: String): Single<ByteArray> {
-        var byteArray = byteArrayOf()
         val isAuthenRequired = BiometricUtil.isAuthenReuired(listOf(name), context)
-        if (isAuthenRequired) {
+        return if (isAuthenRequired) {
             if (context is FragmentActivity) {
                 return BiometricUtil.withAuthenticate<ByteArray>(activity = context,
                     onAuthenticationSucceeded = { result ->
@@ -85,12 +84,12 @@ internal class SecureFileStorageImpl(
                     onAuthenticationError = { _, _ -> byteArrayOf() },
                     onAuthenticationFailed = { byteArrayOf() }
                 )
+            } else {
+                Single.error(IllegalStateException("Context is not an instance of FragmentActivity"))
             }
-        }
-        else {
+        } else {
             return Single.fromCallable { read(File(context.filesDir, "$alias-$name").absolutePath, isAuthenRequired) }
         }
-        return Single.fromCallable { byteArray }
     }
 
     override fun readOnFilesDirWithoutAuthentication(name: String): ByteArray {
