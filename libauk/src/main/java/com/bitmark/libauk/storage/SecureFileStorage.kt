@@ -80,7 +80,7 @@ internal class SecureFileStorageImpl(
                         read(
                             File(context.filesDir, "$alias-$name").absolutePath,
                             isAuthenRequired
-                        ).also { byteArray = it }
+                        )
                     },
                     onAuthenticationError = { _, _ -> byteArrayOf() },
                     onAuthenticationFailed = { byteArrayOf() }
@@ -98,26 +98,25 @@ internal class SecureFileStorageImpl(
     }
 
     override fun readFiles(names: List<String>): Single<Map<String, ByteArray>> {
-        val map = mutableMapOf<String, ByteArray>()
         val isAuthenRequired = BiometricUtil.isAuthenReuired(names, context)
-        if (isAuthenRequired) {
-            BiometricUtil.withAuthenticate(
-                activity = context as FragmentActivity,
-                onAuthenticationSucceeded = { result ->
-                    names.forEach { name ->
-                        read(File(context.filesDir, "$alias-$name").absolutePath, isAuthenRequired).also { map[name] = it }
-                    }
-                    map
-                },
-                onAuthenticationError = { _, _ -> map },
-                onAuthenticationFailed = { map }
-            )
+
+        fun readFileContents(): Map<String, ByteArray> = names.associateWith { name ->
+            read(File(context.filesDir, "$alias-$name").absolutePath, isAuthenRequired)
         }
-        return Single.fromCallable {
-            names.forEach { name ->
-                read(File(context.filesDir, "$alias-$name").absolutePath, isAuthenRequired).also { map[name] = it }
+
+        return if (isAuthenRequired) {
+            if (context is FragmentActivity) {
+                BiometricUtil.withAuthenticate<Map<String, ByteArray>>(
+                    activity = context,
+                    onAuthenticationSucceeded = { readFileContents() },
+                    onAuthenticationError = { _, _ -> emptyMap() },
+                    onAuthenticationFailed = { emptyMap() }
+                )
+            } else {
+                Single.error(IllegalStateException("Context is not an instance of FragmentActivity"))
             }
-            map
+        } else {
+            Single.fromCallable { readFileContents() }
         }
     }
 

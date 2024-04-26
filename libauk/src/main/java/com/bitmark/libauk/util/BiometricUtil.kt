@@ -29,9 +29,9 @@ class BiometricUtil {
         @UiThread
         fun <T : Any> withAuthenticate(
             activity: FragmentActivity,
-            @WorkerThread onAuthenticationSucceeded: (BiometricPrompt.AuthenticationResult) -> T,
-            @WorkerThread onAuthenticationFailed: () -> T,
-            @WorkerThread onAuthenticationError: (Int, CharSequence) -> T
+            onAuthenticationSucceeded: (BiometricPrompt.AuthenticationResult) -> T,
+            onAuthenticationFailed: () -> T,
+            onAuthenticationError: (Int, CharSequence) -> T
         ): Single<T> {
             val subject = PublishSubject.create<T>()
             val executor = ContextCompat.getMainExecutor(activity)
@@ -40,10 +40,12 @@ class BiometricUtil {
                 executor,
                 object : BiometricPrompt.AuthenticationCallback() {
                     override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                        Single.fromCallable { onAuthenticationSucceeded(result) }.subscribe(
-                            { subject.onNext(it) },
-                            { subject.onComplete() }
-                        ).let { }
+                        try{
+                            val data = onAuthenticationSucceeded(result)
+                            subject.onNext(data)
+                        } catch (e: Exception) {
+                            subject.onError(e)
+                        }
                     }
 
                     override fun onAuthenticationFailed() {
@@ -55,10 +57,12 @@ class BiometricUtil {
                         errorCode: Int,
                         errString: CharSequence
                     ) {
-                        Single.fromCallable { onAuthenticationError(errorCode, errString) }.subscribe(
-                            { subject.onNext(it) },
-                            { subject.onError(it) }
-                        ).let {  }
+                        try{
+                            val data = onAuthenticationError(errorCode, errString)
+                            subject.onNext(data)
+                        } catch (e: Exception) {
+                            subject.onError(e)
+                        }
                     }
                 }
             )
