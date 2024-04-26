@@ -36,14 +36,15 @@ class SecureFileStorageTest {
             secureFileStorage.rxCompletable { gw ->
                 gw.writeOnFilesDir(
                     d.key,
-                    d.value.toByteArray()
+                    d.value.toByteArray(),
+                    true
                 )
             }
                 .test()
                 .assertComplete()
                 .assertNoErrors()
 
-            secureFileStorage.rxSingle { gw -> String(gw.readOnFilesDir(d.key)) }
+            secureFileStorage.readOnFilesDir(d.key).map { byteArray -> String(byteArray) }
                 .test()
                 .assertComplete()
                 .assertNoErrors()
@@ -64,14 +65,15 @@ class SecureFileStorageTest {
             secureFileStorage.rxCompletable { gw ->
                 gw.writeOnFilesDir(
                     d.key,
-                    d.value.toByteArray()
+                    d.value.toByteArray(),
+                    true
                 )
             }
                 .test()
                 .assertComplete()
                 .assertNoErrors()
 
-            secureFileStorage.rxSingle { gw -> String(gw.readOnFilesDir(d.key)) }
+            secureFileStorage.readOnFilesDir(d.key).map { byteArray -> String(byteArray) }
                 .test()
                 .assertComplete()
                 .assertNoErrors()
