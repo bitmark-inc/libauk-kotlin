@@ -78,7 +78,6 @@ interface WalletStorage {
     ): Single<ByteArray>
 
     fun readOnFilesDir(name: String): Single<ByteArray>
-
     fun writeOnFilesDir(name: String, data: ByteArray, isPrivate: Boolean)
     fun encryptFile(input: File, output: File): Completable
     fun decryptFile(input: File, output: File, usingLegacy: Boolean): Completable
