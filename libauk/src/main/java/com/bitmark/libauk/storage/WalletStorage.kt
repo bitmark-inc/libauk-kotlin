@@ -177,7 +177,8 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         /* accountDidKey */
         val accountDID = generateAccountDID(seed)
 
-        val accountDidPrivateKey = Bip32ECKeyPair.generateKeyPair(seed.data)
+        val seedByte = getSeedBytes(seed)
+        val accountDidPrivateKey = Bip32ECKeyPair.generateKeyPair(seedByte)
 
         /* pre-generate 100 eth addresses */
         val preGenerateEthAddresses = preGenerateETHAddresses(seed, 0, PRE_GENERATE_ADDRESS_LIMIT)
@@ -218,6 +219,13 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         newGsonInstance().fromJson<Seed>(String(json))
     }
 
+    private fun getSeedBytes(walletSeed: Seed): ByteArray {
+        val mnemonic = MnemonicUtils.generateMnemonic(walletSeed.data)
+
+        val seed = MnemonicUtils.generateSeed(mnemonic, walletSeed.passphrase ?: "")
+        return seed
+    }
+
     private fun getSeedWithoutAuthentication(): Single<Seed> = Single.fromCallable(
         {secureFileStorage.readOnFilesDirWithoutAuthentication(SEED_FILE_NAME)}
     ).map { json ->
@@ -234,9 +242,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         }
 
     private fun generateAccountDID(walletSeed: Seed) : String {
-        val mnemonic = MnemonicUtils.generateMnemonic(walletSeed.data)
-
-        val seed = MnemonicUtils.generateSeed(mnemonic, walletSeed.passphrase ?: "")
+        val seed = getSeedBytes(walletSeed)
         val masterKeypair = Bip32ECKeyPair.generateKeyPair(seed)
         val bip44Keypair = Bip32ECKeyPair.deriveKeyPair(masterKeypair, ACCOUNT_DERIVATION_PATH)
         val prefix: ByteArray = listOf(231, 1).map { it.toByte() }.toByteArray()
@@ -258,14 +264,14 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
     override fun getAccountDIDSignature(message: String): Single<String> {
         return getSeedPublicData().map { seedPublicData ->
             try {
-                throw Throwable("Failed to get accountDIDPrivateKey")
                 seedPublicData.getAccountDIDPrivateKey()
             } catch (e: Exception) {
                 throw Throwable("Failed to get accountDIDPrivateKey")
             }
         }.onErrorResumeNext { error ->
             getSeed().map { seed ->
-                Bip32ECKeyPair.generateKeyPair(seed.data)
+                val seedByte = getSeedBytes(seed)
+                Bip32ECKeyPair.generateKeyPair(seedByte)
             }}
             .map { masterKeypair ->
                 val bip44Keypair = Bip32ECKeyPair.deriveKeyPair(masterKeypair, ACCOUNT_DERIVATION_PATH)
