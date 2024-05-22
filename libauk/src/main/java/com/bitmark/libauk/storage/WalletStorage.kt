@@ -258,6 +258,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
     override fun getAccountDIDSignature(message: String): Single<String> {
         return getSeedPublicData().map { seedPublicData ->
             try {
+                throw Throwable("Failed to get accountDIDPrivateKey")
                 seedPublicData.getAccountDIDPrivateKey()
             } catch (e: Exception) {
                 throw Throwable("Failed to get accountDIDPrivateKey")
