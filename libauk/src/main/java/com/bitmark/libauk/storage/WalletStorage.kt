@@ -221,7 +221,6 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
 
     private fun getSeedBytes(walletSeed: Seed): ByteArray {
         val mnemonic = MnemonicUtils.generateMnemonic(walletSeed.data)
-
         val seed = MnemonicUtils.generateSeed(mnemonic, walletSeed.passphrase ?: "")
         return seed
     }
@@ -264,6 +263,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
     override fun getAccountDIDSignature(message: String): Single<String> {
         return getSeedPublicData().map { seedPublicData ->
             try {
+                throw Throwable("Failed to get accountDIDPrivateKey")
                 seedPublicData.getAccountDIDPrivateKey()
             } catch (e: Exception) {
                 throw Throwable("Failed to get accountDIDPrivateKey")
@@ -388,9 +388,8 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
     }
 
     private fun generateEncryptKey(walletSeed: Seed): ByteArray {
-        val mnemonic = MnemonicUtils.generateMnemonic(walletSeed.data)
-        val seed = MnemonicUtils.generateSeed(mnemonic, walletSeed.passphrase ?: "")
-        val masterKeypair = Bip32ECKeyPair.generateKeyPair(seed)
+        val seedB = getSeedBytes(walletSeed)
+        val masterKeypair = Bip32ECKeyPair.generateKeyPair(seedB)
         val bip44Keypair = Bip32ECKeyPair.deriveKeyPair(masterKeypair, ENCRYPT_KEY_DERIVATION_PATH)
         return Numeric.toBytesPadded(bip44Keypair.privateKey, 32)
     }
@@ -611,8 +610,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
     }
 
     private fun generateETHCredentialWithIndex(seed: Seed, index: Int): Credentials {
-        val mnemonic = MnemonicUtils.generateMnemonic(seed.data)
-        val seedB = MnemonicUtils.generateSeed(mnemonic, seed.passphrase ?: "")
+        val seedB = getSeedBytes(seed)
         val masterKeypair = Bip32ECKeyPair.generateKeyPair(seedB)
         val path = intArrayOf(
             44 or Bip32ECKeyPair.HARDENED_BIT,
