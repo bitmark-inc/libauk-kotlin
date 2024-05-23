@@ -42,7 +42,7 @@ import kotlin.Pair
 const val SEED_FILE_NAME = "libauk_seed.dat"
 const val ETH_KEY_INFO_FILE_NAME = "libauk_eth_key_info.dat"
 const val SEED_PUBLIC_DATA_FILE_NAME = "libauk_seed_public_data.dat"
-const val PRE_GENERATE_ADDRESS_LIMIT = 3
+const val PRE_GENERATE_ADDRESS_LIMIT = 10
 interface WalletStorage {
     fun createKey(passphrase: String? = "", name: String, isPrivate: Boolean): Completable
     fun importKey(
@@ -78,7 +78,6 @@ interface WalletStorage {
     ): Single<ByteArray>
 
     fun readOnFilesDir(name: String): Single<ByteArray>
-
     fun writeOnFilesDir(name: String, data: ByteArray, isPrivate: Boolean)
     fun encryptFile(input: File, output: File): Completable
     fun decryptFile(input: File, output: File, usingLegacy: Boolean): Completable
@@ -177,7 +176,8 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         /* accountDidKey */
         val accountDID = generateAccountDID(seed)
 
-        val accountDidPrivateKey = Bip32ECKeyPair.generateKeyPair(seed.data)
+        val seedByte = getSeedBytes(seed)
+        val accountDidPrivateKey = Bip32ECKeyPair.generateKeyPair(seedByte)
 
         /* pre-generate 100 eth addresses */
         val preGenerateEthAddresses = preGenerateETHAddresses(seed, 0, PRE_GENERATE_ADDRESS_LIMIT)
@@ -218,6 +218,12 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         newGsonInstance().fromJson<Seed>(String(json))
     }
 
+    private fun getSeedBytes(walletSeed: Seed): ByteArray {
+        val mnemonic = MnemonicUtils.generateMnemonic(walletSeed.data)
+        val seed = MnemonicUtils.generateSeed(mnemonic, walletSeed.passphrase ?: "")
+        return seed
+    }
+
     private fun getSeedWithoutAuthentication(): Single<Seed> = Single.fromCallable(
         {secureFileStorage.readOnFilesDirWithoutAuthentication(SEED_FILE_NAME)}
     ).map { json ->
@@ -234,9 +240,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         }
 
     private fun generateAccountDID(walletSeed: Seed) : String {
-        val mnemonic = MnemonicUtils.generateMnemonic(walletSeed.data)
-
-        val seed = MnemonicUtils.generateSeed(mnemonic, walletSeed.passphrase ?: "")
+        val seed = getSeedBytes(walletSeed)
         val masterKeypair = Bip32ECKeyPair.generateKeyPair(seed)
         val bip44Keypair = Bip32ECKeyPair.deriveKeyPair(masterKeypair, ACCOUNT_DERIVATION_PATH)
         val prefix: ByteArray = listOf(231, 1).map { it.toByte() }.toByteArray()
@@ -264,7 +268,8 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
             }
         }.onErrorResumeNext { error ->
             getSeed().map { seed ->
-                Bip32ECKeyPair.generateKeyPair(seed.data)
+                val seedByte = getSeedBytes(seed)
+                Bip32ECKeyPair.generateKeyPair(seedByte)
             }}
             .map { masterKeypair ->
                 val bip44Keypair = Bip32ECKeyPair.deriveKeyPair(masterKeypair, ACCOUNT_DERIVATION_PATH)
@@ -381,9 +386,8 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
     }
 
     private fun generateEncryptKey(walletSeed: Seed): ByteArray {
-        val mnemonic = MnemonicUtils.generateMnemonic(walletSeed.data)
-        val seed = MnemonicUtils.generateSeed(mnemonic, walletSeed.passphrase ?: "")
-        val masterKeypair = Bip32ECKeyPair.generateKeyPair(seed)
+        val seedB = getSeedBytes(walletSeed)
+        val masterKeypair = Bip32ECKeyPair.generateKeyPair(seedB)
         val bip44Keypair = Bip32ECKeyPair.deriveKeyPair(masterKeypair, ENCRYPT_KEY_DERIVATION_PATH)
         return Numeric.toBytesPadded(bip44Keypair.privateKey, 32)
     }
@@ -604,8 +608,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
     }
 
     private fun generateETHCredentialWithIndex(seed: Seed, index: Int): Credentials {
-        val mnemonic = MnemonicUtils.generateMnemonic(seed.data)
-        val seedB = MnemonicUtils.generateSeed(mnemonic, seed.passphrase ?: "")
+        val seedB = getSeedBytes(seed)
         val masterKeypair = Bip32ECKeyPair.generateKeyPair(seedB)
         val path = intArrayOf(
             44 or Bip32ECKeyPair.HARDENED_BIT,
