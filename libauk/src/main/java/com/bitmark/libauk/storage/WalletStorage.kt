@@ -1,6 +1,5 @@
 package com.bitmark.libauk.storage
 
-import androidx.lifecycle.Transformations.map
 import at.favre.lib.hkdf.HKDF
 import com.bitmark.apiservice.configuration.GlobalConfiguration
 import com.bitmark.apiservice.utils.Address
@@ -11,7 +10,6 @@ import com.bitmark.cryptography.crypto.encoder.Base58
 import com.bitmark.cryptography.crypto.key.PublicKey
 import com.bitmark.libauk.Const.ACCOUNT_DERIVATION_PATH
 import com.bitmark.libauk.Const.ENCRYPT_KEY_DERIVATION_PATH
-import com.bitmark.libauk.model.KeyInfo
 import com.bitmark.libauk.model.Seed
 import com.bitmark.libauk.model.SeedPublicData
 import com.bitmark.libauk.util.fromJson
@@ -64,7 +62,7 @@ interface WalletStorage {
     fun getETHAddress(): Single<String>
     fun ethSignMessage(message: ByteArray, needToHash: Boolean): Single<Sign.SignatureData>
     fun ethSignTransaction(transaction: RawTransaction, chainId: Long): Single<ByteArray>
-    fun getETHAddressWithIndex(index: Int): Single<String>
+    fun getETHAddressWithIndexes(indexes: List<Int>): Single<List<String>>
     fun ethSignMessageWithIndex(
         message: ByteArray,
         needToHash: Boolean,
@@ -214,8 +212,14 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         }
     }
 
-    private fun getSeed(): Single<Seed> = secureFileStorage.readOnFilesDir(SEED_FILE_NAME).map { json ->
-        newGsonInstance().fromJson<Seed>(String(json))
+    private fun getSeed(): Single<Seed> {
+        return secureFileStorage.readOnFilesDir(SEED_FILE_NAME)
+            .map { json ->
+                newGsonInstance().fromJson(String(json), Seed::class.java)
+            }
+            .onErrorResumeNext { error ->
+                Single.error(Throwable("Failed to read or parse Seed file", error))
+            }
     }
 
     private fun getSeedBytes(walletSeed: Seed): ByteArray {
@@ -321,21 +325,13 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         return addresses
     }
 
-    override fun getETHAddressWithIndex(index: Int): Single<String> =
-        getSeedPublicData()
-            .map { seedPublicData ->
-                // Process seedPublicData and extract the ethAddress with index
-                val address = seedPublicData.preGenerateEthAddresses[index]
-                if (address.isNullOrEmpty()) {
-                    throw Throwable("Failed to get ethAddress with index: $index")
-                } else {
-                    address
-                }
-            }.onErrorResumeNext { _ ->
-                createETHCredentialWithIndex(index).map { credential ->
-                    credential.address
-                }
+    override fun getETHAddressWithIndexes(indexes: List<Int>): Single<List<String>> {
+        return getSeed()
+            .map { seed -> generateETHAddressWithIndexes(seed, indexes) }
+            .onErrorResumeNext { error ->
+                Single.error(Throwable("Failed to retrieve ETH addresses", error))
             }
+    }
 
     override fun ethSignMessage(
         message: ByteArray,
@@ -622,8 +618,21 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
     }
 
     private fun createETHCredentialWithIndex(index: Int): Single<Credentials> {
-        return getSeed().map {seed ->
-            generateETHCredentialWithIndex(seed, index)
-        }
+        return getSeed()
+            .map { seed ->
+                generateETHCredentialWithIndex(seed, index)
+            }
+            .onErrorResumeNext { error ->
+                Single.error(Throwable("Failed to create ETH credentials for index: $index", error))
+            }
+    }
+
+    private fun generateETHAddressWithIndex(seed: Seed, index: Int): String {
+        val credential = generateETHCredentialWithIndex(seed, index)
+        return credential.address
+    }
+
+    private fun generateETHAddressWithIndexes(seed: Seed, indexes: List<Int>): List<String> {
+        return indexes.map { index -> generateETHAddressWithIndex(seed, index) }
     }
 }
