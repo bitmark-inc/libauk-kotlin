@@ -62,7 +62,7 @@ interface WalletStorage {
     fun getETHAddress(): Single<String>
     fun ethSignMessage(message: ByteArray, needToHash: Boolean): Single<Sign.SignatureData>
     fun ethSignTransaction(transaction: RawTransaction, chainId: Long): Single<ByteArray>
-    fun getETHAddressWithIndexes(indexes: List<Int>): Single<List<String>>
+    fun getETHAddressWithIndexes(indexes: List<Int>): Single<Map<Int, String>>
     fun ethSignMessageWithIndex(
         message: ByteArray,
         needToHash: Boolean,
@@ -325,9 +325,11 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         return addresses
     }
 
-    override fun getETHAddressWithIndexes(indexes: List<Int>): Single<List<String>> {
+    override fun getETHAddressWithIndexes(indexes: List<Int>): Single<Map<Int, String>> {
         return getSeed()
-            .map { seed -> generateETHAddressWithIndexes(seed, indexes) }
+            .map { seed ->
+                indexes.associateWith { index -> generateETHAddressWithIndex(seed, index) }
+            }
             .onErrorResumeNext { error ->
                 Single.error(Throwable("Failed to retrieve ETH addresses", error))
             }
