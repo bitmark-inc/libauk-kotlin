@@ -1,5 +1,6 @@
 package com.bitmark.libauk.storage
 
+import AddressIndex
 import at.favre.lib.hkdf.HKDF
 import com.bitmark.apiservice.configuration.GlobalConfiguration
 import com.bitmark.apiservice.utils.Address
@@ -41,6 +42,7 @@ const val SEED_FILE_NAME = "libauk_seed.dat"
 const val ETH_KEY_INFO_FILE_NAME = "libauk_eth_key_info.dat"
 const val SEED_PUBLIC_DATA_FILE_NAME = "libauk_seed_public_data.dat"
 const val PRE_GENERATE_ADDRESS_LIMIT = 1
+
 interface WalletStorage {
     fun createKey(passphrase: String? = "", name: String, isPrivate: Boolean): Completable
     fun importKey(
@@ -52,17 +54,14 @@ interface WalletStorage {
     ): Completable
 
     fun exportSeed(withAuthentication: Boolean): Single<Seed>
-
     fun generateSeedPublicData(seed: Seed) : SeedPublicData
-
     fun isWalletCreated(): Single<Boolean>
     fun getName(): Single<String>
     fun getAccountDID(): Single<String>
     fun getAccountDIDSignature(message: String): Single<String>
-    fun getETHAddress(): Single<String>
     fun ethSignMessage(message: ByteArray, needToHash: Boolean): Single<Sign.SignatureData>
     fun ethSignTransaction(transaction: RawTransaction, chainId: Long): Single<ByteArray>
-    fun getETHAddressWithIndexes(indexes: List<Int>): Single<Map<Int, String>>
+    fun getAddresses(addressIndexes : List<AddressIndex>): Single<Map<AddressIndex, String>>
     fun ethSignMessageWithIndex(
         message: ByteArray,
         needToHash: Boolean,
@@ -294,17 +293,6 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         return credential.address
     }
 
-     override fun getETHAddress(): Single<String> = getSeedPublicData()
-        .map { seedPublicData ->
-            // Process seedPublicData and extract the ethAddress
-            seedPublicData.ethAddress
-        }
-        .onErrorResumeNext { error ->
-            getSeed().map { seed ->
-                generateETHAddress(seed)
-            }
-        }
-
     private fun preGenerateETHAddresses(seed: Seed, start: Int, end: Int): Map<Int, String>
     {
         val addresses = mutableMapOf<Int, String>()
@@ -325,14 +313,49 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         return addresses
     }
 
-    override fun getETHAddressWithIndexes(indexes: List<Int>): Single<Map<Int, String>> {
-        return getSeed()
-            .map { seed ->
-                indexes.associateWith { index -> generateETHAddressWithIndex(seed, index) }
+    override fun getAddresses(addressIndexes: List<AddressIndex>): Single<Map<AddressIndex, String>> {
+        return getSeedPublicData().map { seedPublicData ->
+            addressIndexes.associateWith { addressIndex ->
+                getAddressFromSeedPublicData(seedPublicData, addressIndex)
             }
+        }
             .onErrorResumeNext { error ->
-                Single.error(Throwable("Failed to retrieve ETH addresses", error))
+            getSeed().map { seed ->
+                addressIndexes.associateWith { addressIndex ->
+                    getAddressFromSeed(seed, addressIndex)
+                }
             }
+        }
+    }
+
+    private fun getAddressFromSeedPublicData(seedPublicData: SeedPublicData, addressIndex: AddressIndex): String {
+        return when (addressIndex.chain) {
+            "eth" -> {
+                val address = seedPublicData.preGenerateEthAddresses[addressIndex.index]
+                if (address.isNullOrEmpty()) {
+                    throw Throwable("Failed to get ethAddress with index: ${addressIndex.index}")
+                } else {
+                    address
+                }
+            }
+            "tezos" -> {
+                val address = seedPublicData.preGenerateTezosAddresses[addressIndex.index]
+                if (address.isNullOrEmpty()) {
+                    throw Throwable("Failed to get tezosAddress with index: ${addressIndex.index}")
+                } else {
+                    address
+                }
+            }
+            else -> throw IllegalArgumentException("Unsupported chain: ${addressIndex.chain}")
+        }
+    }
+
+    private fun getAddressFromSeed(seed: Seed, addressIndex: AddressIndex): String {
+        return when (addressIndex.chain) {
+            "eth" -> generateETHAddressWithIndex(seed, addressIndex.index)
+            "tezos" -> generateTezosAddressWithIndex(seed, addressIndex.index)
+            else -> throw IllegalArgumentException("Unsupported chain: ${addressIndex.chain}")
+        }
     }
 
     override fun ethSignMessage(
@@ -554,7 +577,6 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
     override fun removeKey(name: String): Completable = secureFileStorage.rxCompletable { storage ->
         storage.deleteOnFilesDir(name)
     }
-
     private fun generateMnemonic(): String {
         val initialEntropy = ByteArray(16)
         SecureRandom().nextBytes(initialEntropy)
@@ -618,7 +640,6 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         val bip44Keypair = Bip32ECKeyPair.deriveKeyPair(masterKeypair, path)
         return Credentials.create(bip44Keypair)
     }
-
     private fun createETHCredentialWithIndex(index: Int): Single<Credentials> {
         return getSeed()
             .map { seed ->
@@ -628,13 +649,12 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
                 Single.error(Throwable("Failed to create ETH credentials for index: $index", error))
             }
     }
-
     private fun generateETHAddressWithIndex(seed: Seed, index: Int): String {
         val credential = generateETHCredentialWithIndex(seed, index)
         return credential.address
     }
-
-    private fun generateETHAddressWithIndexes(seed: Seed, indexes: List<Int>): List<String> {
-        return indexes.map { index -> generateETHAddressWithIndex(seed, index) }
+    private  fun generateTezosAddressWithIndex(seed: Seed, index: Int): String {
+        val wallet = getTezosWalletWithIndexFromSeed(seed, index)
+        return wallet.publicKey.base58Representation
     }
 }
