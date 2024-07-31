@@ -3,7 +3,7 @@ import com.google.gson.annotations.Expose
 import com.google.gson.annotations.SerializedName
 
 @JsonSerialize
-data class AddressIndex (
+class AddressIndex (
   @Expose
   @SerializedName("chain")
   val chain: String,
