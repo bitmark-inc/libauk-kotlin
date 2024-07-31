@@ -330,7 +330,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
 
     private fun getAddressFromSeedPublicData(seedPublicData: SeedPublicData, addressIndex: AddressIndex): String {
         return when (addressIndex.chain) {
-            "eth" -> {
+            "ethereum" -> {
                 val address = seedPublicData.preGenerateEthAddresses[addressIndex.index]
                 if (address.isNullOrEmpty()) {
                     throw Throwable("Failed to get ethAddress with index: ${addressIndex.index}")
@@ -352,7 +352,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
 
     private fun getAddressFromSeed(seed: Seed, addressIndex: AddressIndex): String {
         return when (addressIndex.chain) {
-            "eth" -> generateETHAddressWithIndex(seed, addressIndex.index)
+            "ethereum" -> generateETHAddressWithIndex(seed, addressIndex.index)
             "tezos" -> generateTezosAddressWithIndex(seed, addressIndex.index)
             else -> throw IllegalArgumentException("Unsupported chain: ${addressIndex.chain}")
         }
