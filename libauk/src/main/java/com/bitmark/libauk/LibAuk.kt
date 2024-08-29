@@ -1,15 +1,11 @@
 package com.bitmark.libauk
 
 import android.content.Context
-import com.bitmark.apiservice.configuration.GlobalConfiguration
-import com.bitmark.apiservice.configuration.Network
 import com.bitmark.libauk.storage.SecureFileStorageImpl
 import com.bitmark.libauk.storage.WalletStorage
 import com.bitmark.libauk.storage.WalletStorageImpl
 import org.web3j.crypto.Bip44WalletUtils
-import org.web3j.crypto.Keys
-import org.web3j.crypto.MnemonicUtils
-import java.util.*
+import java.util.UUID
 
 class LibAuk {
 
@@ -20,14 +16,6 @@ class LibAuk {
         @Synchronized
         fun getInstance(): LibAuk =
             INSTANCE ?: LibAuk().also { INSTANCE = it }
-    }
-
-    init {
-        GlobalConfiguration.createInstance(
-            GlobalConfiguration.builder()
-                .withApiToken("bitmark")
-                .withNetwork(Network.LIVE_NET)
-        )
     }
 
     fun getStorage(uuid: UUID, context: Context): WalletStorage {

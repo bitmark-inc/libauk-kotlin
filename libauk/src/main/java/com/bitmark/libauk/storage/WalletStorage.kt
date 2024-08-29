@@ -1,17 +1,8 @@
 package com.bitmark.libauk.storage
 
-import androidx.lifecycle.Transformations.map
 import at.favre.lib.hkdf.HKDF
-import com.bitmark.apiservice.configuration.GlobalConfiguration
-import com.bitmark.apiservice.utils.Address
-import com.bitmark.apiservice.utils.ArrayUtil
-import com.bitmark.cryptography.crypto.Sha256
-import com.bitmark.cryptography.crypto.Sha3256
-import com.bitmark.cryptography.crypto.encoder.Base58
-import com.bitmark.cryptography.crypto.key.PublicKey
 import com.bitmark.libauk.Const.ACCOUNT_DERIVATION_PATH
 import com.bitmark.libauk.Const.ENCRYPT_KEY_DERIVATION_PATH
-import com.bitmark.libauk.model.KeyInfo
 import com.bitmark.libauk.model.Seed
 import com.bitmark.libauk.model.SeedPublicData
 import com.bitmark.libauk.util.fromJson
@@ -25,8 +16,10 @@ import io.camlcase.kotlintezos.wallet.crypto.toHexString
 import io.camlcase.kotlintezos.wallet.crypto.watermarkAndHash
 import io.reactivex.Completable
 import io.reactivex.Single
+import org.bouncycastle.crypto.digests.SHA256Digest
 import org.web3j.crypto.*
 import org.web3j.utils.Numeric
+import wallet.core.jni.Base58
 import wallet.core.jni.Curve
 import wallet.core.jni.PrivateKey
 import java.io.File
@@ -245,7 +238,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         val bip44Keypair = Bip32ECKeyPair.deriveKeyPair(masterKeypair, ACCOUNT_DERIVATION_PATH)
         val prefix: ByteArray = listOf(231, 1).map { it.toByte() }.toByteArray()
         val compressedPubKey = compressPubKey(bip44Keypair.publicKey)
-        return "did:key:z${Base58.BASE_58.encode(prefix + compressedPubKey.hexStringToByteArray())}"
+        return "did:key:z${Base58.encode(prefix + compressedPubKey.hexStringToByteArray())}"
     }
 
     override fun getAccountDID(): Single<String> = getSeedPublicData()
@@ -275,7 +268,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
                 val bip44Keypair = Bip32ECKeyPair.deriveKeyPair(masterKeypair, ACCOUNT_DERIVATION_PATH)
 
                 val sigData = Sign.signMessage(
-                    Sha256.hash(message.toByteArray(Charsets.UTF_8)),
+                    SHA256Digest(message.toByteArray(Charsets.UTF_8)).encodedState,
                     bip44Keypair,
                     false
                 )
@@ -562,25 +555,6 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         SecureRandom().nextBytes(initialEntropy)
 
         return MnemonicUtils.generateMnemonic(initialEntropy)
-    }
-
-    private fun generateAccountNumber(key: PublicKey): String? {
-        val address = Address.getDefault(key, GlobalConfiguration.network())
-        val keyVariantVarInt = address.prefix
-        val publicKeyBytes = key.toBytes()
-        val preChecksum = ArrayUtil.concat(keyVariantVarInt, publicKeyBytes)
-        val checksum = ArrayUtil.slice(
-            Sha3256.hash(preChecksum),
-            0,
-            Address.CHECKSUM_LENGTH
-        )
-        return Base58.BASE_58.encode(
-            ArrayUtil.concat(
-                keyVariantVarInt,
-                publicKeyBytes,
-                checksum
-            )
-        )
     }
 
     private fun compressPubKey(pubKey: BigInteger): String {
