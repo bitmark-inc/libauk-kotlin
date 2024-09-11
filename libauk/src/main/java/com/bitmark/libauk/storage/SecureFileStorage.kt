@@ -11,6 +11,8 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.security.KeyStore
 import java.util.*
+import android.hardware.biometrics.StrongBoxManager
+import android.os.Build
 
 internal interface SecureFileStorage {
 
@@ -103,6 +105,8 @@ internal class SecureFileStorageImpl(
     private fun getMasterKey(): MasterKey {
         keyStore.load(null)
 
+        val isStrongBoxSupported = isStrongBoxAvailable(context)
+
         val keyAlias = masterKeyAlias ?: UUID.randomUUID().toString().also { masterKeyAlias = it }
 
         val parameterSpec = KeyGenParameterSpec.Builder(
@@ -113,7 +117,9 @@ internal class SecureFileStorageImpl(
             setDigests(KeyProperties.DIGEST_SHA512)
             setUserAuthenticationRequired(false)
             setUnlockedDeviceRequired(true)
-            setIsStrongBoxBacked(true)
+            if (isStrongBoxSupported) {
+                setIsStrongBoxBacked(true)
+            }
             setRandomizedEncryptionRequired(true)
             setBlockModes(KeyProperties.BLOCK_MODE_GCM)
             setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
@@ -122,6 +128,15 @@ internal class SecureFileStorageImpl(
         return MasterKey.Builder(context, keyAlias)
             .setKeyGenParameterSpec(parameterSpec)
             .build()
+    }
+
+    fun isStrongBoxAvailable(context: Context): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val strongBoxManager = context.getSystemService(Context.STRONGBOX_SERVICE) as? StrongBoxManager
+            strongBoxManager?.isStrongBox() == true
+        } else {
+            false
+        }
     }
 
     companion object {
