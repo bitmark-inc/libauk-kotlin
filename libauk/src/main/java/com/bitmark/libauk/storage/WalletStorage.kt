@@ -19,7 +19,7 @@ import io.reactivex.Single
 import org.bouncycastle.crypto.digests.SHA256Digest
 import org.web3j.crypto.*
 import org.web3j.utils.Numeric
-import wallet.core.jni.Base58
+import com.bitmark.libauk.util.Base58
 import wallet.core.jni.Curve
 import wallet.core.jni.PrivateKey
 import java.io.File
