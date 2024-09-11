@@ -1,6 +1,7 @@
 package com.bitmark.libauk.storage
 
 import android.content.Context
+import android.content.pm.PackageManager
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import androidx.security.crypto.EncryptedFile
@@ -11,7 +12,6 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.security.KeyStore
 import java.util.*
-import android.hardware.biometrics.StrongBoxManager
 import android.os.Build
 
 internal interface SecureFileStorage {
@@ -116,8 +116,10 @@ internal class SecureFileStorageImpl(
             setKeySize(256)
             setDigests(KeyProperties.DIGEST_SHA512)
             setUserAuthenticationRequired(false)
-            setUnlockedDeviceRequired(true)
-            if (isStrongBoxSupported) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                setUnlockedDeviceRequired(true)
+            }
+            if (isStrongBoxSupported && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 setIsStrongBoxBacked(true)
             }
             setRandomizedEncryptionRequired(true)
@@ -130,10 +132,11 @@ internal class SecureFileStorageImpl(
             .build()
     }
 
-    fun isStrongBoxAvailable(context: Context): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            val strongBoxManager = context.getSystemService(Context.STRONGBOX_SERVICE) as? StrongBoxManager
-            strongBoxManager?.isStrongBox() == true
+    private fun isStrongBoxAvailable(context: Context): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            val hasStrongBox =
+                context.packageManager.hasSystemFeature(PackageManager.FEATURE_STRONGBOX_KEYSTORE)
+            return hasStrongBox
         } else {
             false
         }
