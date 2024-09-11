@@ -16,7 +16,7 @@ import io.camlcase.kotlintezos.wallet.crypto.toHexString
 import io.camlcase.kotlintezos.wallet.crypto.watermarkAndHash
 import io.reactivex.Completable
 import io.reactivex.Single
-import org.bouncycastle.crypto.digests.SHA256Digest
+import java.security.MessageDigest
 import org.web3j.crypto.*
 import org.web3j.utils.Numeric
 import com.bitmark.libauk.util.Base58
@@ -194,9 +194,10 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
             val seed = getWalletSeed(storage);
             val masterKeypair = Bip32ECKeyPair.generateKeyPair(seed)
             val bip44Keypair = Bip32ECKeyPair.deriveKeyPair(masterKeypair, ACCOUNT_DERIVATION_PATH)
+            val digest = MessageDigest.getInstance("SHA-256")
 
             val sigData = Sign.signMessage(
-                SHA256Digest(message.toByteArray(Charsets.UTF_8)).encodedState,
+                digest.digest(message.toByteArray(Charsets.UTF_8)),
                 bip44Keypair,
                 false
             )
