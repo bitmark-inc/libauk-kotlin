@@ -1,7 +1,6 @@
 package com.bitmark.libauk.storage
 
 import android.content.Context
-import android.content.pm.PackageManager
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import androidx.security.crypto.EncryptedFile
@@ -105,8 +104,6 @@ internal class SecureFileStorageImpl(
     private fun getMasterKey(): MasterKey {
         keyStore.load(null)
 
-        val isStrongBoxSupported = isStrongBoxAvailable(context)
-
         val keyAlias = masterKeyAlias ?: UUID.randomUUID().toString().also { masterKeyAlias = it }
 
         val parameterSpec = KeyGenParameterSpec.Builder(
@@ -119,9 +116,6 @@ internal class SecureFileStorageImpl(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 setUnlockedDeviceRequired(true)
             }
-            if (isStrongBoxSupported && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                setIsStrongBoxBacked(true)
-            }
             setRandomizedEncryptionRequired(true)
             setBlockModes(KeyProperties.BLOCK_MODE_GCM)
             setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
@@ -130,16 +124,6 @@ internal class SecureFileStorageImpl(
         return MasterKey.Builder(context, keyAlias)
             .setKeyGenParameterSpec(parameterSpec)
             .build()
-    }
-
-    private fun isStrongBoxAvailable(context: Context): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            val hasStrongBox =
-                context.packageManager.hasSystemFeature(PackageManager.FEATURE_STRONGBOX_KEYSTORE)
-            return hasStrongBox
-        } else {
-            false
-        }
     }
 
     companion object {
