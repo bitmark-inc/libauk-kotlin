@@ -47,12 +47,12 @@ interface WalletStorage {
     fun getAccountDID(): Single<String>
     fun getAccountDIDSignature(message: String): Single<String>
     fun getETHAddress(): Single<String>
-    fun ethSignMessage(message: ByteArray, needToHash: Boolean): Single<Sign.SignatureData>
+    fun ethSignMessage(message: ByteArray, isPersonalMessage: Boolean): Single<Sign.SignatureData>
     fun ethSignTransaction(transaction: RawTransaction, chainId: Long): Single<ByteArray>
     fun getETHAddressWithIndex(index: Int): Single<String>
     fun ethSignMessageWithIndex(
         message: ByteArray,
-        needToHash: Boolean,
+        isPersonalMessage: Boolean,
         index: Int
     ): Single<Sign.SignatureData>
 
@@ -180,7 +180,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         }
 
     override fun getAccountDID(): Single<String> = secureFileStorage.rxSingle { storage ->
-        val seed = getWalletSeed(storage);
+        val seed = getWalletSeed(storage)
         val masterKeypair = Bip32ECKeyPair.generateKeyPair(seed)
         val bip44Keypair = Bip32ECKeyPair.deriveKeyPair(masterKeypair, ACCOUNT_DERIVATION_PATH)
 
@@ -191,7 +191,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
 
     override fun getAccountDIDSignature(message: String): Single<String> =
         secureFileStorage.rxSingle { storage ->
-            val seed = getWalletSeed(storage);
+            val seed = getWalletSeed(storage)
             val masterKeypair = Bip32ECKeyPair.generateKeyPair(seed)
             val bip44Keypair = Bip32ECKeyPair.deriveKeyPair(masterKeypair, ACCOUNT_DERIVATION_PATH)
             val digest = MessageDigest.getInstance("SHA-256")
@@ -219,7 +219,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
 
     override fun ethSignMessage(
         message: ByteArray,
-        needToHash: Boolean
+        isPersonalMessage: Boolean
     ): Single<Sign.SignatureData> =
         secureFileStorage.rxSingle { storage ->
             val json = storage.readOnFilesDir(SEED_FILE_NAME)
@@ -228,17 +228,26 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
             val credential =
                 Bip44WalletUtils.loadBip44Credentials(seed.passphrase ?: "", mnemonic)
 
-            Sign.signMessage(message, credential.ecKeyPair, needToHash)
+            if (isPersonalMessage) {
+                Sign.signPrefixedMessage(message, credential.ecKeyPair)
+            } else {
+                Sign.signMessage(message, credential.ecKeyPair)
+            }
+
         }
 
     override fun ethSignMessageWithIndex(
         message: ByteArray,
-        needToHash: Boolean,
+        isPersonalMessage: Boolean,
         index: Int
     ): Single<Sign.SignatureData> =
         secureFileStorage.rxSingle { storage ->
             val credential = createETHCredentialWithIndex(storage, index)
-            Sign.signMessage(message, credential.ecKeyPair, needToHash)
+            if (isPersonalMessage) {
+                Sign.signPrefixedMessage(message, credential.ecKeyPair)
+            } else {
+                Sign.signMessage(message, credential.ecKeyPair)
+            }
         }
 
     override fun ethSignTransaction(transaction: RawTransaction, chainId: Long): Single<ByteArray> =
@@ -327,11 +336,12 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         }
     }
 
-    override fun exportMnemonicPassphrase(): Single<String> = secureFileStorage.rxSingle { storage ->
-        val json = storage.readOnFilesDir(SEED_FILE_NAME)
-        val seed = newGsonInstance().fromJson<Seed>(String(json))
-        seed.passphrase ?: ""
-    }
+    override fun exportMnemonicPassphrase(): Single<String> =
+        secureFileStorage.rxSingle { storage ->
+            val json = storage.readOnFilesDir(SEED_FILE_NAME)
+            val seed = newGsonInstance().fromJson<Seed>(String(json))
+            seed.passphrase ?: ""
+        }
 
     override fun exportMnemonicWords(): Single<String> = secureFileStorage.rxSingle { storage ->
         val json = storage.readOnFilesDir(SEED_FILE_NAME)
@@ -342,21 +352,21 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
     private fun getTezosWallet(): Single<HDWallet> = secureFileStorage.rxSingle { storage ->
         val json = storage.readOnFilesDir(SEED_FILE_NAME)
         val seed = newGsonInstance().fromJson<Seed>(String(json))
-        val mnemonic = MnemonicUtils.generateMnemonic(seed.data);
+        val mnemonic = MnemonicUtils.generateMnemonic(seed.data)
         Pair(mnemonic, seed.passphrase)
     }.map { (mnemonic, passphrase) ->
-        HDWallet(mnemonic.split(" "), passphrase = passphrase);
+        HDWallet(mnemonic.split(" "), passphrase = passphrase)
     }
 
     private fun getTezosWalletWithIndex(index: Int): Single<HDWallet> =
         secureFileStorage.rxSingle { storage ->
             val json = storage.readOnFilesDir(SEED_FILE_NAME)
             val seed = newGsonInstance().fromJson<Seed>(String(json))
-            val mnemonic = MnemonicUtils.generateMnemonic(seed.data);
+            val mnemonic = MnemonicUtils.generateMnemonic(seed.data)
             Pair(mnemonic, seed.passphrase)
         }.map { (mnemonic, passphrase) ->
             val path = "m/44\'/1729\'/${index}\'/0\'"
-            HDWallet(mnemonic.split(" "), derivationPath = path, passphrase = passphrase);
+            HDWallet(mnemonic.split(" "), derivationPath = path, passphrase = passphrase)
         }
 
     override fun getTezosPublicKey(): Single<String> = getTezosWallet().map {
