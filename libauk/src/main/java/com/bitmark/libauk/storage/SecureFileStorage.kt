@@ -118,7 +118,10 @@ internal class SecureFileStorageImpl(
             }
             setRandomizedEncryptionRequired(true)
             setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-            setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                setIsStrongBoxBacked(true)
+            }
+            setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_RSA_OAEP)
         }.build()
 
         return MasterKey.Builder(context, keyAlias)
