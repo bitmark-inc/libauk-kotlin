@@ -1,10 +1,8 @@
 package com.bitmark.libauk.storage
 
-import com.bitmark.libauk.util.BiometricUtil
 import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
-import androidx.fragment.app.FragmentActivity
 import androidx.security.crypto.EncryptedFile
 import androidx.security.crypto.MasterKey
 import io.reactivex.Completable
@@ -12,21 +10,18 @@ import io.reactivex.Single
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.security.KeyStore
-import java.util.UUID
+import java.util.*
+import android.os.Build
 
 internal interface SecureFileStorage {
 
-    fun writeOnFilesDir(name: String, data: ByteArray, isPrivate: Boolean)
+    fun writeOnFilesDir(name: String, data: ByteArray)
 
-    fun readOnFilesDir(name: String): Single<ByteArray>
-
-    fun readOnFilesDirWithoutAuthentication(name: String): ByteArray
+    fun readOnFilesDir(name: String): ByteArray
 
     fun isExistingOnFilesDir(name: String): Boolean
 
     fun deleteOnFilesDir(name: String): Boolean
-
-    fun readFiles(names: List<String>): Single<Map<String, ByteArray>>
 }
 
 internal class SecureFileStorageImpl(
@@ -43,8 +38,8 @@ internal class SecureFileStorageImpl(
             value?.let { sharedPreferences.edit().putString(KEY_MASTER_KEY_ALIAS, it).apply() }
         }
 
-    private fun write(path: String, name: String, data: ByteArray, isPrivate: Boolean) {
-        val file = getEncryptedFile("$path/$name", false, isPrivate)
+    private fun write(path: String, name: String, data: ByteArray) {
+        val file = getEncryptedFile("$path/$name", false)
         file.openFileOutput().apply {
             write(data)
             flush()
@@ -52,13 +47,12 @@ internal class SecureFileStorageImpl(
         }
     }
 
-    override fun writeOnFilesDir(name: String, data: ByteArray, isPrivate: Boolean) {
-        write(context.filesDir.absolutePath, "$alias-$name", data, isPrivate)
+    override fun writeOnFilesDir(name: String, data: ByteArray) {
+        write(context.filesDir.absolutePath, "$alias-$name", data)
     }
 
-    private fun read(path: String, isPrivate: Boolean): ByteArray {
-
-        val file = getEncryptedFile(path, true, isPrivate)
+    private fun read(path: String): ByteArray {
+        val file = getEncryptedFile(path, true)
         if (File(path).length() == 0L) return byteArrayOf()
         val inputStream = file.openFileInput()
         val os = ByteArrayOutputStream()
@@ -70,54 +64,8 @@ internal class SecureFileStorageImpl(
         return os.toByteArray()
     }
 
-    override fun readOnFilesDir(name: String): Single<ByteArray> {
-        val isAuthenRequired = BiometricUtil.isAuthenReuired(listOf(name), context)
-        return if (isAuthenRequired) {
-            if (context is FragmentActivity) {
-                return BiometricUtil.withAuthenticate<ByteArray>(activity = context,
-                    onAuthenticationSucceeded = { result ->
-                        read(
-                            File(context.filesDir, "$alias-$name").absolutePath,
-                            isAuthenRequired
-                        )
-                    },
-                    onAuthenticationError = { _, _ -> byteArrayOf() },
-                    onAuthenticationFailed = { byteArrayOf() }
-                )
-            } else {
-                Single.error(IllegalStateException("Context is not an instance of FragmentActivity"))
-            }
-        } else {
-            return Single.fromCallable { read(File(context.filesDir, "$alias-$name").absolutePath, isAuthenRequired) }
-        }
-    }
-
-    override fun readOnFilesDirWithoutAuthentication(name: String): ByteArray {
-        return read(File(context.filesDir, "$alias-$name").absolutePath, false)
-    }
-
-    override fun readFiles(names: List<String>): Single<Map<String, ByteArray>> {
-        val isAuthenRequired = BiometricUtil.isAuthenReuired(names, context)
-
-        fun readFileContents(): Map<String, ByteArray> = names.associateWith { name ->
-            read(File(context.filesDir, "$alias-$name").absolutePath, isAuthenRequired)
-        }
-
-        return if (isAuthenRequired) {
-            if (context is FragmentActivity) {
-                BiometricUtil.withAuthenticate<Map<String, ByteArray>>(
-                    activity = context,
-                    onAuthenticationSucceeded = { readFileContents() },
-                    onAuthenticationError = { _, _ -> emptyMap() },
-                    onAuthenticationFailed = { emptyMap() }
-                )
-            } else {
-                Single.error(IllegalStateException("Context is not an instance of FragmentActivity"))
-            }
-        } else {
-            Single.fromCallable { readFileContents() }
-        }
-    }
+    override fun readOnFilesDir(name: String): ByteArray =
+        read(File(context.filesDir, "$alias-$name").absolutePath)
 
     private fun isExisting(path: String): Boolean = File(path).exists()
 
@@ -136,48 +84,45 @@ internal class SecureFileStorageImpl(
     override fun deleteOnFilesDir(name: String): Boolean =
         delete(File(context.filesDir, "$alias-$name").absolutePath)
 
-    private fun getEncryptedFile(path: String, read: Boolean, isPrivate: Boolean) = File(path).let { f ->
+    private fun getEncryptedFile(path: String, read: Boolean) = File(path).let { f ->
         if (f.isDirectory) throw IllegalArgumentException("do not support directory")
         if (read && !f.exists() && !f.createNewFile()) {
             throw IllegalStateException("cannot create new file for reading")
         } else if (!read && f.exists() && !f.delete()) {
             throw IllegalStateException("cannot delete file before writing")
         }
-        getEncryptedFileBuilder(f, isPrivate).build()
+        getEncryptedFileBuilder(f).build()
     }
 
-    private fun getEncryptedFileBuilder(f: File, isPrivate: Boolean) = EncryptedFile.Builder(
+    private fun getEncryptedFileBuilder(f: File) = EncryptedFile.Builder(
         context,
         f,
-        getMasterKey(isPrivate),
+        getMasterKey(),
         EncryptedFile.FileEncryptionScheme.AES256_GCM_HKDF_4KB
     )
 
-    private fun getMasterKey(isPrivate: Boolean): MasterKey {
+    private fun getMasterKey(): MasterKey {
         keyStore.load(null)
+
         val keyAlias = masterKeyAlias ?: UUID.randomUUID().toString().also { masterKeyAlias = it }
-        val authenticationTimeoutInSeconds = 5
-        val parameterSpecBuilder = KeyGenParameterSpec.Builder(keyAlias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT).apply {
+
+        val parameterSpec = KeyGenParameterSpec.Builder(
+            keyAlias,
+            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+        ).apply {
             setKeySize(256)
             setDigests(KeyProperties.DIGEST_SHA512)
+            setUserAuthenticationRequired(false)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                setUnlockedDeviceRequired(true)
+            }
             setRandomizedEncryptionRequired(true)
-            setInvalidatedByBiometricEnrollment(true)
             setBlockModes(KeyProperties.BLOCK_MODE_GCM)
             setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-        }
-        // if android version is higher than 28
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-            parameterSpecBuilder.apply {
-                setUnlockedDeviceRequired(true)
-                setIsStrongBoxBacked(true)
-            }
-        }
-
-        val  parameterSpec = parameterSpecBuilder.build()
+        }.build()
 
         return MasterKey.Builder(context, keyAlias)
             .setKeyGenParameterSpec(parameterSpec)
-            .setUserAuthenticationRequired(isPrivate, authenticationTimeoutInSeconds)
             .build()
     }
 
