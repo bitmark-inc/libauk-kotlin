@@ -111,13 +111,16 @@ internal class SecureFileStorageImpl(
             KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
         ).apply {
             setKeySize(256)
-            setDigests(KeyProperties.DIGEST_SHA256)
+            setDigests(KeyProperties.DIGEST_SHA512)
             setUserAuthenticationRequired(false)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 setUnlockedDeviceRequired(true)
             }
             setRandomizedEncryptionRequired(true)
             setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                setIsStrongBoxBacked(true)
+            }
             setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_RSA_OAEP)
         }.build()
 
