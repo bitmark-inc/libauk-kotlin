@@ -1,5 +1,6 @@
 package com.bitmark.libauk.storage
 
+import android.util.Log
 import at.favre.lib.hkdf.HKDF
 import com.bitmark.libauk.Const.ACCOUNT_DERIVATION_PATH
 import com.bitmark.libauk.Const.ENCRYPT_KEY_DERIVATION_PATH
@@ -38,7 +39,8 @@ interface WalletStorage {
         words: List<String>,
         passphrase: String? = "",
         name: String,
-        creationDate: Date?
+        creationDate: Date?,
+        override: Boolean = false
     ): Completable
 
     fun isWalletCreated(): Single<Boolean>
@@ -120,7 +122,8 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         words: List<String>,
         passphrase: String?,
         name: String,
-        creationDate: Date?
+        creationDate: Date?,
+        override: Boolean
     ): Completable =
         secureFileStorage.rxSingle { storage ->
             storage.isExistingOnFilesDir(SEED_FILE_NAME) && storage.isExistingOnFilesDir(
@@ -128,7 +131,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
             )
         }
             .map { isExisting ->
-                if (!isExisting) {
+                if (!isExisting || override) {
                     val mnemonic = words.joinToString(separator = " ")
                     val entropy = MnemonicUtils.generateEntropy(mnemonic)
                     val seed = Seed(entropy, Date(), name, passphrase ?: "")
@@ -404,11 +407,12 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
         }
 
     override fun removeKeys(): Completable = secureFileStorage.rxSingle { storage ->
-        storage.isExistingOnFilesDir(SEED_FILE_NAME) && storage.isExistingOnFilesDir(
+        storage.isExistingOnFilesDir(SEED_FILE_NAME) || storage.isExistingOnFilesDir(
             ETH_KEY_INFO_FILE_NAME
         )
     }
         .map { isExisting ->
+            Log.d("removeKeys", "isExisting $isExisting")
             if (isExisting) {
                 true
             } else {
@@ -416,6 +420,7 @@ internal class WalletStorageImpl(private val secureFileStorage: SecureFileStorag
             }
         }
         .flatMapCompletable {
+            Log.d("removeKeys", "removing")
             secureFileStorage.rxCompletable { storage ->
                 storage.deleteOnFilesDir(SEED_FILE_NAME)
                 storage.deleteOnFilesDir(ETH_KEY_INFO_FILE_NAME)

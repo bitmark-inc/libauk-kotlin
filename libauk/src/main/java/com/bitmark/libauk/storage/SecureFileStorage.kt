@@ -12,6 +12,7 @@ import java.io.File
 import java.security.KeyStore
 import java.util.*
 import android.os.Build
+import android.util.Log
 
 internal interface SecureFileStorage {
 
@@ -30,13 +31,8 @@ internal class SecureFileStorageImpl(
 ) : SecureFileStorage {
 
     private val keyStore: KeyStore = KeyStore.getInstance(ANDROID_KEY_STORE).apply { load(null) }
-    private val sharedPreferences = context.getSharedPreferences("beaconsdk", Context.MODE_PRIVATE)
 
-    private var masterKeyAlias: String?
-        get() = sharedPreferences.getString(KEY_MASTER_KEY_ALIAS, null)
-        set(value) {
-            value?.let { sharedPreferences.edit().putString(KEY_MASTER_KEY_ALIAS, it).apply() }
-        }
+    private fun getFileName(name: String) = "$alias-${name}-default_alias"
 
     private fun write(path: String, name: String, data: ByteArray) {
         val file = getEncryptedFile("$path/$name", false)
@@ -48,7 +44,7 @@ internal class SecureFileStorageImpl(
     }
 
     override fun writeOnFilesDir(name: String, data: ByteArray) {
-        write(context.filesDir.absolutePath, "$alias-$name", data)
+        write(context.filesDir.absolutePath, getFileName(name), data)
     }
 
     private fun read(path: String): ByteArray {
@@ -65,14 +61,15 @@ internal class SecureFileStorageImpl(
     }
 
     override fun readOnFilesDir(name: String): ByteArray =
-        read(File(context.filesDir, "$alias-$name").absolutePath)
+        read(File(context.filesDir, getFileName(name)).absolutePath)
 
     private fun isExisting(path: String): Boolean = File(path).exists()
 
     override fun isExistingOnFilesDir(name: String): Boolean =
-        isExisting(File(context.filesDir, "$alias-$name").absolutePath)
+        isExisting(File(context.filesDir, getFileName(name)).absolutePath)
 
     private fun delete(path: String): Boolean = File(path).let { file ->
+        Log.d("delete path", "path to delete: $path")
         if (!file.exists()) true
         else if (file.isDirectory) {
             file.deleteRecursively()
@@ -82,7 +79,7 @@ internal class SecureFileStorageImpl(
     }
 
     override fun deleteOnFilesDir(name: String): Boolean =
-        delete(File(context.filesDir, "$alias-$name").absolutePath)
+        delete(File(context.filesDir, getFileName(name)).absolutePath)
 
     private fun getEncryptedFile(path: String, read: Boolean) = File(path).let { f ->
         if (f.isDirectory) throw IllegalArgumentException("do not support directory")
@@ -104,10 +101,8 @@ internal class SecureFileStorageImpl(
     private fun getMasterKey(): MasterKey {
         keyStore.load(null)
 
-        val keyAlias = masterKeyAlias ?: UUID.randomUUID().toString().also { masterKeyAlias = it }
-
         val parameterSpec = KeyGenParameterSpec.Builder(
-            keyAlias,
+            DEFAULT_MASTER_KEY_ALIAS,
             KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
         ).apply {
             setKeySize(256)
@@ -121,14 +116,15 @@ internal class SecureFileStorageImpl(
             setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
         }.build()
 
-        return MasterKey.Builder(context, keyAlias)
+        return MasterKey.Builder(context, DEFAULT_MASTER_KEY_ALIAS)
             .setKeyGenParameterSpec(parameterSpec)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build()
     }
 
     companion object {
         private const val ANDROID_KEY_STORE = "AndroidKeyStore"
-        private const val KEY_MASTER_KEY_ALIAS = "masterKeyAlias"
+        private const val DEFAULT_MASTER_KEY_ALIAS = "default_master_key_alias"
     }
 }
 
