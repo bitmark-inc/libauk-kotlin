@@ -118,7 +118,6 @@ internal class SecureFileStorageImpl(
 
         return MasterKey.Builder(context, DEFAULT_MASTER_KEY_ALIAS)
             .setKeyGenParameterSpec(parameterSpec)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build()
     }
 
