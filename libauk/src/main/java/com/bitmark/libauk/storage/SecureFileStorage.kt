@@ -9,7 +9,6 @@ import io.reactivex.Completable
 import io.reactivex.Single
 import java.io.ByteArrayOutputStream
 import java.io.File
-import java.security.KeyStore
 import java.util.*
 import android.os.Build
 import android.util.Log
@@ -29,9 +28,6 @@ internal class SecureFileStorageImpl(
     private val context: Context,
     private val alias: UUID
 ) : SecureFileStorage {
-
-    private val keyStore: KeyStore = KeyStore.getInstance(ANDROID_KEY_STORE).apply { load(null) }
-
     private fun getFileName(name: String) = "$alias-${name}-default_alias"
 
     private fun write(path: String, name: String, data: ByteArray) {
@@ -99,8 +95,6 @@ internal class SecureFileStorageImpl(
     )
 
     private fun getMasterKey(): MasterKey {
-        keyStore.load(null)
-
         val parameterSpec = KeyGenParameterSpec.Builder(
             MasterKey.DEFAULT_MASTER_KEY_ALIAS,
             KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
@@ -119,10 +113,6 @@ internal class SecureFileStorageImpl(
         return MasterKey.Builder(context)
             .setKeyGenParameterSpec(parameterSpec)
             .build()
-    }
-
-    companion object {
-        private const val ANDROID_KEY_STORE = "AndroidKeyStore"
     }
 }
 
