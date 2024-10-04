@@ -102,7 +102,7 @@ internal class SecureFileStorageImpl(
         keyStore.load(null)
 
         val parameterSpec = KeyGenParameterSpec.Builder(
-            DEFAULT_MASTER_KEY_ALIAS,
+            MasterKey.DEFAULT_MASTER_KEY_ALIAS,
             KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
         ).apply {
             setKeySize(256)
@@ -116,14 +116,13 @@ internal class SecureFileStorageImpl(
             setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
         }.build()
 
-        return MasterKey.Builder(context, DEFAULT_MASTER_KEY_ALIAS)
+        return MasterKey.Builder(context)
             .setKeyGenParameterSpec(parameterSpec)
             .build()
     }
 
     companion object {
         private const val ANDROID_KEY_STORE = "AndroidKeyStore"
-        private const val DEFAULT_MASTER_KEY_ALIAS = "default_master_key_alias"
     }
 }
 
