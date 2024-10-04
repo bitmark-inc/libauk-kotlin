@@ -29,11 +29,18 @@ internal class SecureFileStorageImpl(
 
     private fun write(path: String, name: String, data: ByteArray) {
         val file = getEncryptedFile("$path/$name", false)
-        file.openFileOutput().apply {
-            write(data)
-            flush()
-            close()
+        try {
+            file.openFileOutput().apply {
+                write(data)
+                flush()
+                close()
+            }
+        } catch (
+            e: Exception
+        ) {
+            Log.e("write error", "error: $e")
         }
+
         Log.d("write path", "path to write: $path/$name, dataLen: ${data.size}")
     }
 
