@@ -29,7 +29,6 @@ internal class SecureFileStorageImpl(
     private val alias: UUID
 ) : SecureFileStorage {
 
-    private val keyStore: KeyStore = KeyStore.getInstance(ANDROID_KEY_STORE).apply { load(null) }
     private val sharedPreferences = context.getSharedPreferences("beaconsdk", Context.MODE_PRIVATE)
 
     private var masterKeyAlias: String?
@@ -102,7 +101,7 @@ internal class SecureFileStorageImpl(
     )
 
     private fun getMasterKey(): MasterKey {
-        keyStore.load(null)
+        KeyStore.getInstance(ANDROID_KEY_STORE).apply { load(null) }
 
         val keyAlias = masterKeyAlias ?: UUID.randomUUID().toString().also { masterKeyAlias = it }
 
@@ -113,9 +112,6 @@ internal class SecureFileStorageImpl(
             setKeySize(256)
             setDigests(KeyProperties.DIGEST_SHA512)
             setUserAuthenticationRequired(false)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                setUnlockedDeviceRequired(true)
-            }
             setRandomizedEncryptionRequired(true)
             setBlockModes(KeyProperties.BLOCK_MODE_GCM)
             setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
@@ -128,7 +124,7 @@ internal class SecureFileStorageImpl(
 
     companion object {
         private const val ANDROID_KEY_STORE = "AndroidKeyStore"
-        private const val KEY_MASTER_KEY_ALIAS = "masterKeyAlias"
+        private const val KEY_MASTER_KEY_ALIAS = "libaukMasterKeyAlias"
     }
 }
 
