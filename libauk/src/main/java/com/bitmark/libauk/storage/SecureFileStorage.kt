@@ -1,17 +1,15 @@
 package com.bitmark.libauk.storage
 
 import android.content.Context
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
 import androidx.security.crypto.EncryptedFile
 import androidx.security.crypto.MasterKey
 import io.reactivex.Completable
 import io.reactivex.Single
 import java.io.ByteArrayOutputStream
 import java.io.File
-import java.security.KeyStore
 import java.util.*
-import android.os.Build
+import android.util.Log
+import java.security.KeyStore
 
 internal interface SecureFileStorage {
 
@@ -22,21 +20,15 @@ internal interface SecureFileStorage {
     fun isExistingOnFilesDir(name: String): Boolean
 
     fun deleteOnFilesDir(name: String): Boolean
+
+    fun cleanKeyStoreAlias()
 }
 
 internal class SecureFileStorageImpl(
     private val context: Context,
     private val alias: UUID
 ) : SecureFileStorage {
-
-    private val keyStore: KeyStore = KeyStore.getInstance(ANDROID_KEY_STORE).apply { load(null) }
-    private val sharedPreferences = context.getSharedPreferences("beaconsdk", Context.MODE_PRIVATE)
-
-    private var masterKeyAlias: String?
-        get() = sharedPreferences.getString(KEY_MASTER_KEY_ALIAS, null)
-        set(value) {
-            value?.let { sharedPreferences.edit().putString(KEY_MASTER_KEY_ALIAS, it).apply() }
-        }
+    private fun getFileName(name: String) = "$alias-${name}-default_alias"
 
     private fun write(path: String, name: String, data: ByteArray) {
         val file = getEncryptedFile("$path/$name", false)
@@ -48,7 +40,13 @@ internal class SecureFileStorageImpl(
     }
 
     override fun writeOnFilesDir(name: String, data: ByteArray) {
-        write(context.filesDir.absolutePath, "$alias-$name", data)
+        try {
+            write(context.filesDir.absolutePath, getFileName(name), data)
+        } catch (e: Exception) {
+            Log.e("writeOnFilesDir", "error: $e")
+            cleanKeyStoreAlias()
+            write(context.filesDir.absolutePath, getFileName(name), data)
+        }
     }
 
     private fun read(path: String): ByteArray {
@@ -64,15 +62,21 @@ internal class SecureFileStorageImpl(
         return os.toByteArray()
     }
 
-    override fun readOnFilesDir(name: String): ByteArray =
-        read(File(context.filesDir, "$alias-$name").absolutePath)
+    override fun readOnFilesDir(name: String): ByteArray = try {
+        read(File(context.filesDir, getFileName(name)).absolutePath)
+    } catch (e: Exception) {
+        Log.e("readOnFilesDir", "error: $e")
+        cleanKeyStoreAlias()
+        read(File(context.filesDir, getFileName(name)).absolutePath)
+    }
 
     private fun isExisting(path: String): Boolean = File(path).exists()
 
     override fun isExistingOnFilesDir(name: String): Boolean =
-        isExisting(File(context.filesDir, "$alias-$name").absolutePath)
+        isExisting(File(context.filesDir, getFileName(name)).absolutePath)
 
     private fun delete(path: String): Boolean = File(path).let { file ->
+        Log.d("delete path", "path to delete: $path")
         if (!file.exists()) true
         else if (file.isDirectory) {
             file.deleteRecursively()
@@ -82,7 +86,16 @@ internal class SecureFileStorageImpl(
     }
 
     override fun deleteOnFilesDir(name: String): Boolean =
-        delete(File(context.filesDir, "$alias-$name").absolutePath)
+        delete(File(context.filesDir, getFileName(name)).absolutePath)
+
+    override fun cleanKeyStoreAlias() {
+        val keyStore = KeyStore.getInstance(ANDROID_KEY_STORE).apply { load(null) }
+        val alias = keyStore.aliases().toList();
+        alias.forEach {
+            Log.d("alias", "alias: $it")
+            keyStore.deleteEntry(it)
+        }
+    }
 
     private fun getEncryptedFile(path: String, read: Boolean) = File(path).let { f ->
         if (f.isDirectory) throw IllegalArgumentException("do not support directory")
@@ -102,33 +115,16 @@ internal class SecureFileStorageImpl(
     )
 
     private fun getMasterKey(): MasterKey {
-        keyStore.load(null)
-
-        val keyAlias = masterKeyAlias ?: UUID.randomUUID().toString().also { masterKeyAlias = it }
-
-        val parameterSpec = KeyGenParameterSpec.Builder(
-            keyAlias,
-            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
-        ).apply {
-            setKeySize(256)
-            setDigests(KeyProperties.DIGEST_SHA512)
-            setUserAuthenticationRequired(false)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                setUnlockedDeviceRequired(true)
-            }
-            setRandomizedEncryptionRequired(true)
-            setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-            setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-        }.build()
-
-        return MasterKey.Builder(context, keyAlias)
-            .setKeyGenParameterSpec(parameterSpec)
+        KeyStore.getInstance(ANDROID_KEY_STORE).apply { load(null) }
+        return MasterKey.Builder(context, DEFAULT_MASTER_KEY_ALIAS)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .setUserAuthenticationRequired(false)
             .build()
     }
 
     companion object {
         private const val ANDROID_KEY_STORE = "AndroidKeyStore"
-        private const val KEY_MASTER_KEY_ALIAS = "masterKeyAlias"
+        private const val DEFAULT_MASTER_KEY_ALIAS = "_default_master_key_alias_"
     }
 }
 
