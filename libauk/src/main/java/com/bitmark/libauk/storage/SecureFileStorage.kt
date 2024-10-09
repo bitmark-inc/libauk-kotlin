@@ -9,6 +9,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.*
 import android.util.Log
+import java.security.KeyStore
 
 internal interface SecureFileStorage {
 
@@ -98,6 +99,7 @@ internal class SecureFileStorageImpl(
     )
 
     private fun getMasterKey(): MasterKey {
+        KeyStore.getInstance(ANDROID_KEY_STORE).apply { load(null) }
         return MasterKey.Builder(context, DEFAULT_MASTER_KEY_ALIAS)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .setUserAuthenticationRequired(false)
@@ -105,6 +107,7 @@ internal class SecureFileStorageImpl(
     }
 
     companion object {
+        private const val ANDROID_KEY_STORE = "AndroidKeyStore"
         private const val DEFAULT_MASTER_KEY_ALIAS = "_default_master_key_alias_"
     }
 }
