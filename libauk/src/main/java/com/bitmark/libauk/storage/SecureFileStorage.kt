@@ -40,8 +40,6 @@ internal class SecureFileStorageImpl(
         ) {
             Log.e("write error", "error: $e")
         }
-
-        Log.d("write path", "path to write: $path/$name, dataLen: ${data.size}")
     }
 
     override fun writeOnFilesDir(name: String, data: ByteArray) {
@@ -89,7 +87,6 @@ internal class SecureFileStorageImpl(
         } else if (!read && f.exists() && !f.delete()) {
             throw IllegalStateException("cannot delete file before writing")
         }
-        Log.d("getEncryptedFile", "path: $path, read: $read")
         getEncryptedFileBuilder(f).build()
     }
 
@@ -101,7 +98,6 @@ internal class SecureFileStorageImpl(
     )
 
     private fun getMasterKey(): MasterKey {
-        Log.d("getMasterKey", "alias: $alias")
         return MasterKey.Builder(context, DEFAULT_MASTER_KEY_ALIAS)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .setUserAuthenticationRequired(false)
