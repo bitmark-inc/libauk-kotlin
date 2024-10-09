@@ -20,6 +20,8 @@ internal interface SecureFileStorage {
     fun isExistingOnFilesDir(name: String): Boolean
 
     fun deleteOnFilesDir(name: String): Boolean
+
+    fun cleanKeyStoreAlias()
 }
 
 internal class SecureFileStorageImpl(
@@ -30,21 +32,21 @@ internal class SecureFileStorageImpl(
 
     private fun write(path: String, name: String, data: ByteArray) {
         val file = getEncryptedFile("$path/$name", false)
-        try {
-            file.openFileOutput().apply {
-                write(data)
-                flush()
-                close()
-            }
-        } catch (
-            e: Exception
-        ) {
-            Log.e("write error", "error: $e")
+        file.openFileOutput().apply {
+            write(data)
+            flush()
+            close()
         }
     }
 
     override fun writeOnFilesDir(name: String, data: ByteArray) {
-        write(context.filesDir.absolutePath, getFileName(name), data)
+        try {
+            write(context.filesDir.absolutePath, getFileName(name), data)
+        } catch (e: Exception) {
+            Log.e("writeOnFilesDir", "error: $e")
+            cleanKeyStoreAlias()
+            write(context.filesDir.absolutePath, getFileName(name), data)
+        }
     }
 
     private fun read(path: String): ByteArray {
@@ -60,8 +62,13 @@ internal class SecureFileStorageImpl(
         return os.toByteArray()
     }
 
-    override fun readOnFilesDir(name: String): ByteArray =
+    override fun readOnFilesDir(name: String): ByteArray = try {
         read(File(context.filesDir, getFileName(name)).absolutePath)
+    } catch (e: Exception) {
+        Log.e("readOnFilesDir", "error: $e")
+        cleanKeyStoreAlias()
+        read(File(context.filesDir, getFileName(name)).absolutePath)
+    }
 
     private fun isExisting(path: String): Boolean = File(path).exists()
 
@@ -80,6 +87,15 @@ internal class SecureFileStorageImpl(
 
     override fun deleteOnFilesDir(name: String): Boolean =
         delete(File(context.filesDir, getFileName(name)).absolutePath)
+
+    override fun cleanKeyStoreAlias() {
+        val keyStore = KeyStore.getInstance(ANDROID_KEY_STORE).apply { load(null) }
+        val alias = keyStore.aliases().toList();
+        alias.forEach {
+            Log.d("alias", "alias: $it")
+            keyStore.deleteEntry(it)
+        }
+    }
 
     private fun getEncryptedFile(path: String, read: Boolean) = File(path).let { f ->
         if (f.isDirectory) throw IllegalArgumentException("do not support directory")
