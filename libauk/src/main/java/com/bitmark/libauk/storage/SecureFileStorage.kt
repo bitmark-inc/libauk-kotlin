@@ -28,7 +28,7 @@ internal class SecureFileStorageImpl(
     private val context: Context,
     private val alias: UUID
 ) : SecureFileStorage {
-    private fun getFileName(name: String) = "$alias-${name}-default_alias"
+    private fun getFileName(name: String) = "$alias-default_alias-${name}"
 
     private fun write(path: String, name: String, data: ByteArray) {
         val file = getEncryptedFile("$path/$name", false)
