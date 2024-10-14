@@ -1,6 +1,9 @@
 package com.bitmark.libauk.storage
 
 import android.content.Context
+import android.os.Build
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
 import androidx.security.crypto.EncryptedFile
 import androidx.security.crypto.MasterKey
 import io.reactivex.Completable
@@ -120,11 +123,29 @@ internal class SecureFileStorageImpl(
     )
 
     private fun getMasterKey(): MasterKey {
-        KeyStore.getInstance(ANDROID_KEY_STORE).apply { load(null) }
+        val parameterSpec = KeyGenParameterSpec.Builder(
+            DEFAULT_MASTER_KEY_ALIAS,
+            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+        ).apply {
+            setKeySize(256)
+            setDigests(KeyProperties.DIGEST_SHA512)
+            setUserAuthenticationRequired(false)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                setUnlockedDeviceRequired(true)
+            }
+            setRandomizedEncryptionRequired(true)
+            setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+            setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+        }.build()
+
         return MasterKey.Builder(context, DEFAULT_MASTER_KEY_ALIAS)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .setUserAuthenticationRequired(false)
-            .build()
+            .setKeyGenParameterSpec(parameterSpec).build()
+        
+//        KeyStore.getInstance(ANDROID_KEY_STORE).apply { load(null) }
+//        return MasterKey.Builder(context, DEFAULT_MASTER_KEY_ALIAS)
+//            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+//            .setUserAuthenticationRequired(false)
+//            .build()
     }
 
     companion object {
