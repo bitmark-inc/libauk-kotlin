@@ -93,7 +93,12 @@ internal class SecureFileStorageImpl(
         val alias = keyStore.aliases().toList();
         alias.forEach {
             Log.d("alias", "alias: $it")
-            keyStore.deleteEntry(it)
+            // if alias is equal to the default alias, do not delete it
+            if (it != DEFAULT_MASTER_KEY_ALIAS) {
+                keyStore.deleteEntry(it)
+            } else {
+                Log.d("alias", "alias is equal to the default alias")
+            }
         }
     }
 
