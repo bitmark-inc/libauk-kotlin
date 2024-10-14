@@ -95,6 +95,11 @@ internal class SecureFileStorageImpl(
             Log.d("alias", "alias: $it")
             keyStore.deleteEntry(it)
         }
+        val keyFilePath =
+            context.dataDir.absolutePath + "/shared_prefs/__androidx_security_crypto_encrypted_file_pref__..xml"
+        if (File(keyFilePath).exists()) {
+            File(keyFilePath).delete()
+        }
     }
 
     private fun getEncryptedFile(path: String, read: Boolean) = File(path).let { f ->
