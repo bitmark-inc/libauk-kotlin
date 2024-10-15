@@ -21,7 +21,7 @@ internal interface SecureFileStorage {
 
     fun deleteOnFilesDir(name: String): Boolean
 
-    fun cleanKeyStoreAlias()
+    fun cleanKeyStoreSharedPref()
 }
 
 internal class SecureFileStorageImpl(
@@ -44,7 +44,7 @@ internal class SecureFileStorageImpl(
             write(context.filesDir.absolutePath, getFileName(name), data)
         } catch (e: Exception) {
             Log.e("writeOnFilesDir", "error: $e")
-            cleanKeyStoreAlias()
+            cleanKeyStoreSharedPref()
             write(context.filesDir.absolutePath, getFileName(name), data)
         }
     }
@@ -66,7 +66,7 @@ internal class SecureFileStorageImpl(
         read(File(context.filesDir, getFileName(name)).absolutePath)
     } catch (e: Exception) {
         Log.e("readOnFilesDir", "error: $e")
-        cleanKeyStoreAlias()
+        cleanKeyStoreSharedPref()
         read(File(context.filesDir, getFileName(name)).absolutePath)
     }
 
@@ -88,17 +88,15 @@ internal class SecureFileStorageImpl(
     override fun deleteOnFilesDir(name: String): Boolean =
         delete(File(context.filesDir, getFileName(name)).absolutePath)
 
-    override fun cleanKeyStoreAlias() {
-        val keyStore = KeyStore.getInstance(ANDROID_KEY_STORE).apply { load(null) }
-        val alias = keyStore.aliases().toList();
-        alias.forEach {
-            Log.d("alias", "alias: $it")
-            keyStore.deleteEntry(it)
-        }
-        val keyFilePath =
-            context.dataDir.absolutePath + "/shared_prefs/__androidx_security_crypto_encrypted_file_pref__..xml"
-        if (File(keyFilePath).exists()) {
-            File(keyFilePath).delete()
+    override fun cleanKeyStoreSharedPref() {
+        val prefNames = listOf(
+            "__androidx_security_crypto_encrypted_file_pref__",
+            "beaconsdk"
+        )  // List your shared preferences file names contains keystore alias
+        for (prefName in prefNames) {
+            val sharedPreferences =
+                context.getSharedPreferences(prefName, Context.MODE_PRIVATE)
+            sharedPreferences.edit().clear().apply()
         }
     }
 
